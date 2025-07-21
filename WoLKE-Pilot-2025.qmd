@@ -1,0 +1,39 @@
+---
+title: "WoLKE-Pilot-2025"
+author: "Benedikt Beuttler"
+date: "`r Sys.Date()`"
+lang: de
+page-layout: full
+document-css: false
+link-citations: true
+number-sections: true
+editor: visual
+format:
+  html:
+    standalone: true
+    embed-resources: true
+    section-divs: true
+    html-math-method: mathjax
+    wrap: none
+    default-image-extension: png
+    date-format: long
+---
+
+# Preamble
+
+## Prepare the Environment
+
+## \### Load Libraries
+
+```{r load-libraries}
+library(this.path)
+```
+
+## Load Data
+
+```{r load-data}
+# Set working directory to the script's location
+setwd(this.path::this.dir())
+# load in csv
+source("./import_ki-lehramt_2025-07-18_15-48.r")
+```
