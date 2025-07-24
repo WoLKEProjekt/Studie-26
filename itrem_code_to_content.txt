@@ -1,0 +1,128 @@
+QUESTNNR    sprache oder mint
+DE02        Ausschluss vergangenes Semester
+DE03_01     MINT KI Kompetenz
+DE03_02     MINT KI Kompetenz
+DE04_01     Sprache KI Kompetenz
+DE04_02     Sprache KI Kompetenz
+DE06        Früheres KI Seminar bei Can
+DE07        MINT Kontroll - Intervention
+DE08        Sprache Kontroll - Intervention
+DE09        ISP
+DE10        Geschlecht
+DE11        Standort
+DE13_01     Code
+DE14_01     Alter
+DE15_01     Hochschulsemester
+DE16        Studium
+DE16_16     Studium Sonstiges
+DE23        Einwilligung
+DE24        1. Fach
+DE25        2. Fach
+DE26        1. Erweiterungsfach
+DE27        2. Erweiterungsfach
+AI01        AI Literacy
+AI02
+AI03
+AI04
+AI05
+AI06
+AI07
+AI08
+AI09
+AI10
+AI11
+AI13
+AI14
+AI15
+AI16
+AI17_01
+AI17_02
+AI17_03
+AI17_04
+AI17_05
+AI18
+AI19
+AI20
+AI21
+AI22
+AI23
+AI24
+AI25
+AI27
+AI28
+AI29
+AI30
+AI35_02
+AI36_01
+AI36_02
+AI36_03
+AI36_04
+AI36_05
+AI36_06
+AI36_07
+AI36_08
+AI36_09
+AI36_10
+AI36_11
+AI36_12
+AI36_13
+AI36_14
+AI36_15
+AI36_16
+AI36_17
+AI36_18
+AI36_19
+AI36_20
+AI36_21
+AI36_22
+AI36_23
+AI36_24
+AI36_25
+AI36_26
+AI36_27
+AI36_28
+ED03_01     Perceived Usefulness
+ED03_02
+ED03_03
+ED03_04
+TP01_01     TPACK iTK
+TP01_02
+TP01_03
+TP01_04
+TP01_05
+TP02_01     TPACK iTPK
+TP02_02
+TP02_03
+TP02_04
+TP02_05
+TP02_06
+TP02_07
+TP03_01     TPACK iTCK
+TP03_02
+TP03_03
+TP03_04
+TP03_05
+TP04_01     TPACK iTPACK
+TP04_02
+TP04_03
+TP04_04
+TP04_05
+TP04_06
+TP04_07
+TP04_08
+TP04_09
+TP04_10
+TP04_11
+TP04_12
+TP04_13
+TP04_14
+TP04_15
+TP05_01     TPACK Ethik
+TP05_02
+TP05_07
+TP05_08
+TP05_03
+TP05_04
+TP05_05
+TP05_06
+FINISHED

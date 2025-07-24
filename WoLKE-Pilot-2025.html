@@ -3102,7 +3102,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Veröffentlichungsdatum</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">21. Juli 2025</p>
+      <p class="date">24. Juli 2025</p>
     </div>
   </div>
   
@@ -3120,18 +3120,135 @@ vertical-align: -.125em;
 <h2 data-number="1.1" class="anchored" data-anchor-id="prepare-the-environment"><span class="header-section-number">1.1</span> Prepare the Environment</h2>
 </section>
 <section id="load-libraries" class="level2" data-number="1.2">
-<h2 data-number="1.2" class="anchored" data-anchor-id="load-libraries"><span class="header-section-number">1.2</span> ### Load Libraries</h2>
+<h2 data-number="1.2" class="anchored" data-anchor-id="load-libraries"><span class="header-section-number">1.2</span> Load Libraries</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(this.path)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(this.path)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">suppressPackageStartupMessages</span>(<span class="fu">library</span>(dplyr)) <span class="co">#e.g. for select</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr) <span class="co"># for reshaping data</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">suppressPackageStartupMessages</span>(<span class="fu">library</span>(stringdist)) <span class="co">#levenshtein</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="load-data" class="level2" data-number="1.3">
-<h2 data-number="1.3" class="anchored" data-anchor-id="load-data"><span class="header-section-number">1.3</span> Load Data</h2>
+<section id="load-pre--and-posttest-and-reshape-data" class="level2" data-number="1.3">
+<h2 data-number="1.3" class="anchored" data-anchor-id="load-pre--and-posttest-and-reshape-data"><span class="header-section-number">1.3</span> Load Pre- and Posttest and Reshape Data</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set working directory to the script&#39;s location</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">setwd</span>(this.path<span class="sc">::</span><span class="fu">this.dir</span>())</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># load in csv</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;./import_ki-lehramt_2025-07-18_15-48.r&quot;</span>)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="do">### PRETEST</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># load csv -&gt; df_pre</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;./data/import_ki-lehramt_2025-07-24_08-36.r&quot;</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># extract items starting with TP (TPACK) or DE (Demographics)</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>data_pre <span class="ot">&lt;-</span> df_pre  <span class="sc">%&gt;%</span> <span class="fu">select</span>(QUESTNNR, <span class="fu">starts_with</span>(<span class="st">&quot;DE&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;AI&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;ED&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;TP&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;STARTED&quot;</span>),  <span class="fu">starts_with</span>(<span class="st">&quot;FINISHED&quot;</span>))</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>data_pre<span class="sc">$</span>QUESTNNR[<span class="fu">substr</span>(data_pre<span class="sc">$</span>STARTED, <span class="dv">6</span>, <span class="dv">7</span>) <span class="sc">==</span> <span class="st">&quot;07&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;mint-post&quot;</span> <span class="co"># fixe some wrong entries in pre list to post</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># rename demographics</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>data_pre <span class="ot">&lt;-</span> data_pre <span class="sc">%&gt;%</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">code       =</span> <span class="fu">tolower</span>(DE13_01),</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">age        =</span> DE14_01,</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">semester   =</span> DE15_01,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">studies    =</span> DE16,</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">subject1   =</span> DE24,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">subject2   =</span> DE25,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">gender     =</span> DE10,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">location   =</span> DE11,</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">semestercount =</span> DE15_01,</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">isp        =</span> DE09,</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">sprache_control =</span> DE08,</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">sprache_info =</span> DE06, <span class="co">#already visited cans KI seminar</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">mint_control =</span> DE07,</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">mint_exclusion =</span> DE02</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>data_pre <span class="ot">&lt;-</span> data_pre[, <span class="fu">c</span>(<span class="st">&quot;code&quot;</span>, <span class="fu">setdiff</span>(<span class="fu">names</span>(data_pre), <span class="st">&quot;code&quot;</span>))] <span class="co">#set code as first column</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co"># View(data_pre[(is.na(data_pre$code) | data_pre$code == &quot;&quot;), ])</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>data_pre <span class="ot">&lt;-</span> data_pre[<span class="sc">!</span>(<span class="fu">is.na</span>(data_pre<span class="sc">$</span>code) <span class="sc">|</span> data_pre<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;&quot;</span>), ] <span class="co"># remove empty/na codes (=7) -&gt; 1 stimmt Datenschutz nicht zu</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="do">#### POSTTEST</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="co"># load csv -&gt; df_post</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;./data/import_ki-lehramt_2025-07-24_08-35.r&quot;</span>)</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a><span class="co"># extract items starting with</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>data_post <span class="ot">&lt;-</span> df_post  <span class="sc">%&gt;%</span> <span class="fu">select</span>(QUESTNNR, <span class="fu">starts_with</span>(<span class="st">&quot;DE&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;AI&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;ED&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;TP&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;STARTED&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;FINISHED&quot;</span>))</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a><span class="co"># rename demographics</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>data_post <span class="ot">&lt;-</span> data_post <span class="sc">%&gt;%</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">code       =</span> <span class="fu">tolower</span>(DE13_01),</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">age        =</span> DE14_01,</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>    <span class="at">semester   =</span> DE15_01,</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    <span class="at">studies    =</span> DE16,</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>    <span class="at">subject1   =</span> DE24,</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>    <span class="at">subject2   =</span> DE25,</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    <span class="at">gender     =</span> DE10,</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">location   =</span> DE11,</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>    <span class="at">semestercount =</span> DE15_01,</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>    <span class="at">isp        =</span> DE09,</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>    <span class="at">sprache_control =</span> DE08,</span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>    <span class="co">#sprache_info = DE06, #already visited cans KI seminar</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>    <span class="at">mint_control =</span> DE07,</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>    <span class="at">mint_exclusion =</span> DE02</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>data_post <span class="ot">&lt;-</span> data_post[, <span class="fu">c</span>(<span class="st">&quot;code&quot;</span>, <span class="fu">setdiff</span>(<span class="fu">names</span>(data_post), <span class="st">&quot;code&quot;</span>))] <span class="co">#set code as first column</span></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a><span class="co"># View(data_post[(is.na(data_post$code) | data_post$code == &quot;&quot;), ])</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>data_post <span class="ot">&lt;-</span> data_post[<span class="sc">!</span>(<span class="fu">is.na</span>(data_post<span class="sc">$</span>code) <span class="sc">|</span> data_post<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;&quot;</span>), ] <span class="co"># remove empty/na codes (=8) -&gt; 1 hat schon mint besucht, 2 stimmen nicht Datenschutz zu</span></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a><span class="co"># merge pre und post dfs</span></span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(data_pre, data_post)</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a><span class="do">### EXCLUSIONS</span></span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>e1 <span class="ot">&lt;-</span> <span class="fu">nrow</span>(data[data<span class="sc">$</span>FINISHED <span class="sc">==</span> <span class="st">&quot;FALSE&quot;</span>, ]) <span class="co"># not FINISHED</span></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>e1</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 26</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[data<span class="sc">$</span>FINISHED <span class="sc">==</span> <span class="st">&quot;TRUE&quot;</span>, ] </span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>e2 <span class="ot">&lt;-</span> <span class="fu">nrow</span>(data[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;höel07&quot;</span>, ])</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>e2</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[data<span class="sc">$</span>code <span class="sc">!=</span> <span class="st">&quot;höel07&quot;</span>, ] <span class="co">#example code</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># finding typos in code</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>single_codes <span class="ot">&lt;-</span> <span class="fu">unique</span>(data<span class="sc">$</span>code) <span class="co"># only one code present</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(single_codes)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 156</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute pairwise Levenshtein distance</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>dist_matrix <span class="ot">&lt;-</span> stringdist<span class="sc">::</span><span class="fu">stringdistmatrix</span>(single_codes, single_codes, <span class="at">method =</span> <span class="st">&quot;lv&quot;</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Check pairs with distance ≤ 2</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(single_codes)) {</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> <span class="fu">seq_along</span>(single_codes)) {</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (i <span class="sc">&lt;</span> j <span class="sc">&amp;&amp;</span> dist_matrix[i, j] <span class="sc">&lt;=</span> <span class="dv">1</span>) {</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Possible match: %s &lt;-&gt; %s (distance = %d)</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>                  single_codes[i], single_codes[j], dist_matrix[i, j]))</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Possible match: moir10 &lt;-&gt; mair10 (distance = 1)
+Possible match: frch17 &lt;-&gt; drch17 (distance = 1)
+Possible match: goma26 &lt;-&gt; loma26 (distance = 1)
+Possible match: rosa20 &lt;-&gt; rosa21 (distance = 1)
+Possible match: sisu01 &lt;-&gt; sisu00 (distance = 1)</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;mair10&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;moir10&quot;</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;drch17&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;frch17&quot;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;loma26&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;goma26&quot;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;rosa21&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;rosa20&quot;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;sisu00&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;sisu01&quot;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">unique</span>(data<span class="sc">$</span>code)) <span class="co"># only one code present</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 151</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(<span class="fu">table</span>(data<span class="sc">$</span>code) <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="co"># code paare</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 63</code></pre>
+</div>
 </div>
 </section>
 </section>

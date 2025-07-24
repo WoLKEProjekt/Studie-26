@@ -23,17 +23,112 @@ format:
 
 ## Prepare the Environment
 
-## \### Load Libraries
+## Load Libraries
 
 ```{r load-libraries}
 library(this.path)
+suppressPackageStartupMessages(library(dplyr)) #e.g. for select
+library(tidyr) # for reshaping data
+suppressPackageStartupMessages(library(stringdist)) #levenshtein
 ```
 
-## Load Data
+## Load Pre- and Posttest and Reshape Data
 
 ```{r load-data}
 # Set working directory to the script's location
 setwd(this.path::this.dir())
-# load in csv
-source("./import_ki-lehramt_2025-07-18_15-48.r")
+### PRETEST
+# load csv -> df_pre
+source("./data/import_ki-lehramt_2025-07-24_08-36.r")
+
+# extract items starting with TP (TPACK) or DE (Demographics)
+data_pre <- df_pre  %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("STARTED"),  starts_with("FINISHED"))
+data_pre$QUESTNNR[substr(data_pre$STARTED, 6, 7) == "07"] <- "mint-post" # fixe some wrong entries in pre list to post
+
+# rename demographics
+data_pre <- data_pre %>%
+  mutate(
+    code       = tolower(DE13_01),
+    age        = DE14_01,
+    semester   = DE15_01,
+    studies    = DE16,
+    subject1   = DE24,
+    subject2   = DE25,
+    gender     = DE10,
+    location   = DE11,
+    semestercount = DE15_01,
+    isp        = DE09,
+    sprache_control = DE08,
+    sprache_info = DE06, #already visited cans KI seminar
+    mint_control = DE07,
+    mint_exclusion = DE02
+  )
+data_pre <- data_pre[, c("code", setdiff(names(data_pre), "code"))] #set code as first column
+# View(data_pre[(is.na(data_pre$code) | data_pre$code == ""), ])
+data_pre <- data_pre[!(is.na(data_pre$code) | data_pre$code == ""), ] # remove empty/na codes (=7) -> 1 stimmt Datenschutz nicht zu
+
+#### POSTTEST
+
+# load csv -> df_post
+source("./data/import_ki-lehramt_2025-07-24_08-35.r")
+
+# extract items starting with
+data_post <- df_post  %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("STARTED"), starts_with("FINISHED"))
+
+# rename demographics
+data_post <- data_post %>%
+  mutate(
+    code       = tolower(DE13_01),
+    age        = DE14_01,
+    semester   = DE15_01,
+    studies    = DE16,
+    subject1   = DE24,
+    subject2   = DE25,
+    gender     = DE10,
+    location   = DE11,
+    semestercount = DE15_01,
+    isp        = DE09,
+    sprache_control = DE08,
+    #sprache_info = DE06, #already visited cans KI seminar
+    mint_control = DE07,
+    mint_exclusion = DE02
+  )
+data_post <- data_post[, c("code", setdiff(names(data_post), "code"))] #set code as first column
+# View(data_post[(is.na(data_post$code) | data_post$code == ""), ])
+data_post <- data_post[!(is.na(data_post$code) | data_post$code == ""), ] # remove empty/na codes (=8) -> 1 hat schon mint besucht, 2 stimmen nicht Datenschutz zu
+
+# merge pre und post dfs
+data <- bind_rows(data_pre, data_post)
+
+### EXCLUSIONS
+e1 <- nrow(data[data$FINISHED == "FALSE", ]) # not FINISHED
+e1
+data <- data[data$FINISHED == "TRUE", ] 
+
+e2 <- nrow(data[data$code == "höel07", ])
+e2
+data <- data[data$code != "höel07", ] #example code
+
+# finding typos in code
+single_codes <- unique(data$code) # only one code present
+# Compute pairwise Levenshtein distance
+dist_matrix <- stringdist::stringdistmatrix(single_codes, single_codes, method = "lv")
+# Check pairs with distance ≤ 2
+for (i in seq_along(single_codes)) {
+  for (j in seq_along(single_codes)) {
+    if (i < j && dist_matrix[i, j] <= 1) {
+      cat(sprintf("Possible match: %s <-> %s (distance = %d)\n",
+                  single_codes[i], single_codes[j], dist_matrix[i, j]))
+    }
+  }
+}
+data$code[data$code == "mair10"] <- "moir10"
+data$code[data$code == "drch17"] <- "frch17"
+data$code[data$code == "loma26"] <- "goma26"
+data$code[data$code == "rosa21"] <- "rosa20"
+data$code[data$code == "sisu00"] <- "sisu01"
+
+length(unique(data$code)) # only one code present
+sum(table(data$code) > 1) # code paare
+
 ```
