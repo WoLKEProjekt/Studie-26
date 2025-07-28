@@ -5,7 +5,7 @@
 
 #df_pre_file = file.choose()
 #setwd("./")
-df_pre_file = "data/rdata_ki-lehramt_2025-07-24_08-36.csv"
+df_pre_file = "data/rdata_ki-lehramt_2025-07-28_13-53.csv"
 
 options(encoding = "UTF-8")
 df_pre = read.delim(

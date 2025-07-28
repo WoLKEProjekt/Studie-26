@@ -5,7 +5,7 @@
 
 #df_post_file = file.choose()
 # setwd("./")
-df_post_file = "data/rdata_ki-lehramt_2025-07-24_08-35.csv"
+df_post_file = "data/rdata_ki-lehramt_2025-07-28_13-54.csv"
 
 options(encoding = "UTF-8")
 df_post = read.delim(

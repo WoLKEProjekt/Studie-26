@@ -30,6 +30,7 @@ library(this.path)
 suppressPackageStartupMessages(library(dplyr)) #e.g. for select
 library(tidyr) # for reshaping data
 suppressPackageStartupMessages(library(stringdist)) #levenshtein
+library(stringr) # for reshaping data
 ```
 
 ## Load Pre- and Posttest and Reshape Data
@@ -42,7 +43,7 @@ setwd(this.path::this.dir())
 source("./data/import_ki-lehramt_2025-07-24_08-36.r")
 
 # extract items starting with TP (TPACK) or DE (Demographics)
-data_pre <- df_pre  %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("STARTED"),  starts_with("FINISHED"))
+data_pre <- df_pre  %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("RE"), starts_with("STARTED"),  starts_with("FINISHED"))
 data_pre$QUESTNNR[substr(data_pre$STARTED, 6, 7) == "07"] <- "mint-post" # fixe some wrong entries in pre list to post
 
 # rename demographics
@@ -59,7 +60,7 @@ data_pre <- data_pre %>%
     semestercount = DE15_01,
     isp        = DE09,
     sprache_control = DE08,
-    sprache_info = DE06, #already visited cans KI seminar
+    sprache_last_sem = DE06, #already visited cans KI seminar
     mint_control = DE07,
     mint_exclusion = DE02
   )
@@ -73,7 +74,7 @@ data_pre <- data_pre[!(is.na(data_pre$code) | data_pre$code == ""), ] # remove e
 source("./data/import_ki-lehramt_2025-07-24_08-35.r")
 
 # extract items starting with
-data_post <- df_post  %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("STARTED"), starts_with("FINISHED"))
+data_post <- df_post  %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("RE"), starts_with("STARTED"), starts_with("FINISHED"))
 
 # rename demographics
 data_post <- data_post %>%
@@ -97,8 +98,22 @@ data_post <- data_post[, c("code", setdiff(names(data_post), "code"))] #set code
 # View(data_post[(is.na(data_post$code) | data_post$code == ""), ])
 data_post <- data_post[!(is.na(data_post$code) | data_post$code == ""), ] # remove empty/na codes (=8) -> 1 hat schon mint besucht, 2 stimmen nicht Datenschutz zu
 
+# remove non basic types to make it mergeable
+# Convert everything to character, then use type.convert to infer proper base types
+clean_df <- function(df) {
+  df[] <- lapply(df, function(col) {
+    if (!is.atomic(col)) col <- as.character(col)
+    col <- as.character(col)  # force avector etc. to become characters
+    type.convert(col, as.is = TRUE)
+  })
+  return(df)
+}
+data_pre_clean <- clean_df(data_pre)
+data_post_clean <- clean_df(data_post)
+
 # merge pre und post dfs
-data <- bind_rows(data_pre, data_post)
+#data <- dplyr::bind_rows(data_pre, data_post)
+data <- bind_rows(data_pre_clean, data_post_clean)
 
 ### EXCLUSIONS
 e1 <- nrow(data[data$FINISHED == "FALSE", ]) # not FINISHED
@@ -116,7 +131,7 @@ dist_matrix <- stringdist::stringdistmatrix(single_codes, single_codes, method =
 # Check pairs with distance ≤ 2
 for (i in seq_along(single_codes)) {
   for (j in seq_along(single_codes)) {
-    if (i < j && dist_matrix[i, j] <= 1) {
+    if (i < j && dist_matrix[i, j] <= 2) {
       cat(sprintf("Possible match: %s <-> %s (distance = %d)\n",
                   single_codes[i], single_codes[j], dist_matrix[i, j]))
     }
@@ -128,7 +143,45 @@ data$code[data$code == "loma26"] <- "goma26"
 data$code[data$code == "rosa21"] <- "rosa20"
 data$code[data$code == "sisu00"] <- "sisu01"
 
+# create new columns with scale naming
+data <- data %>%
+  mutate(across(starts_with("TP01_"), identity, .names = "TPACK_TK_{str_sub(.col, -2)}")) %>%
+  mutate(across(starts_with("TP02_"), identity, .names = "TPACK_TPK_{str_sub(.col, -2)}")) %>%
+  mutate(across(starts_with("TP03_"), identity, .names = "TPACK_TCK_{str_sub(.col, -2)}")) %>%
+  mutate(across(starts_with("TP04_"), identity, .names = "TPACK_TPACK_{str_sub(.col, -2)}")) %>%
+  mutate(across(starts_with("TP05_"), identity, .names = "TPACK_Ethic_{str_sub(.col, -2)}"))
+
 length(unique(data$code)) # only one code present
 sum(table(data$code) > 1) # code paare
+table(data$gender, data$QUESTNNR) # genders across pre/post in subjects
+table(data$location, data$QUESTNNR) # from where across pre/post in subjects
+table(data$mint_control)
+table(data$code, data$QUESTNNR)
+
+```
+
+# Clean data
+Clean up the data of each questionnaire for factor analysis. That is, we replace negative values (i.e., -1 = *did not understand the question*, -9 = no answer) with `NA`.
+Disclaimer: in the "ki-lehramt" study, we do not have missing answers (-9), as all questions regarding Intelligent-TPACK were mandatory.
+
+```{r clean data}
+# todo: check values (-1, -9)
+# look at ata of every questionnaire
+# AI Literacy
+data_ai <- data %>% select(-starts_with("ED"), -starts_with("TP"), -starts_with("RE"), -starts_with("STARTED"), -starts_with("FINISHED"),) 
+
+# Perceived Usefulness
+data_perc_use <- data %>%
+  select(-starts_with("AI"), -starts_with("TP"), -starts_with("RE"), -starts_with("STARTED"),
+         -starts_with("FINISHED"))
+# TPACK
+data_tpack <- data %>%
+  select(-starts_with("AI"), -starts_with("ED"), -starts_with("RE"), -starts_with("STARTED"),
+         -starts_with("FINISHED"))
+# Reflection
+data_ref <- data %>%
+  select(-starts_with("AI"), -starts_with("ED"), -starts_with("TP"), -starts_with("STARTED"),
+         -starts_with("FINISHED"))
+
 
 ```
