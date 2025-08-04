@@ -59,10 +59,20 @@ data_pre <- data_pre %>%
     location   = DE11,
     semestercount = DE15_01,
     isp        = DE09,
-    sprache_control = DE08,
+    #sprache_intervention = DE08,
     sprache_last_sem = DE06, #already visited cans KI seminar
-    mint_control = DE07,
-    mint_exclusion = DE02
+    #mint_control = DE07,
+    mint_exclusion = DE02,
+    intervention_sprache = case_when(
+      str_to_lower(as.character(DE08)) == "ja" ~ TRUE,
+      str_to_lower(as.character(DE08)) == "nein" ~ FALSE
+    ),
+    intervention_mint = case_when(
+      str_to_lower(as.character(DE07)) == "ja" ~ TRUE,
+      str_to_lower(as.character(DE07)) == "nein" ~ FALSE
+    ),
+    intervention = coalesce(intervention_sprache, FALSE) | coalesce(intervention_mint, FALSE),
+    intervention = as.logical(intervention)
   )
 data_pre <- data_pre[, c("code", setdiff(names(data_pre), "code"))] #set code as first column
 # View(data_pre[(is.na(data_pre$code) | data_pre$code == ""), ])
@@ -89,10 +99,20 @@ data_post <- data_post %>%
     location   = DE11,
     semestercount = DE15_01,
     isp        = DE09,
-    sprache_control = DE08,
+    # sprache_intervention = DE08,
     #sprache_info = DE06, #already visited cans KI seminar
-    mint_control = DE07,
-    mint_exclusion = DE02
+    # mint_control = DE07,
+    mint_exclusion = DE02,
+    intervention_sprache = case_when(
+      str_to_lower(as.character(DE08)) == "ja" ~ TRUE,
+      str_to_lower(as.character(DE08)) == "nein" ~ FALSE
+    ),
+    intervention_mint = case_when(
+      str_to_lower(as.character(DE07)) == "ja" ~ TRUE,
+      str_to_lower(as.character(DE07)) == "nein" ~ FALSE
+    ),
+    intervention = coalesce(intervention_sprache, FALSE) | coalesce(intervention_mint, FALSE),
+    intervention = as.logical(intervention)
   )
 data_post <- data_post[, c("code", setdiff(names(data_post), "code"))] #set code as first column
 # View(data_post[(is.na(data_post$code) | data_post$code == ""), ])
@@ -115,6 +135,25 @@ data_post_clean <- clean_df(data_post)
 #data <- dplyr::bind_rows(data_pre, data_post)
 data <- bind_rows(data_pre_clean, data_post_clean)
 
+# factorize some columns
+data$gender <- factor(data$gender)
+data$location <- factor(data$location)
+
+# create relevant columns group and time
+data <- data %>%
+  mutate(
+    group = case_when(
+      str_detect(QUESTNNR, "sprache") ~ "sprache",
+      str_detect(QUESTNNR, "mint") ~ "mint"
+    ),
+    time = case_when(
+      str_detect(QUESTNNR, "post") ~ "post",
+      TRUE ~ "pre"
+    ),
+    group = factor(group),
+    time = factor(time)
+  )
+
 ### EXCLUSIONS
 e1 <- nrow(data[data$FINISHED == "FALSE", ]) # not FINISHED
 e1
@@ -124,64 +163,269 @@ e2 <- nrow(data[data$code == "höel07", ])
 e2
 data <- data[data$code != "höel07", ] #example code
 
-# finding typos in code
-single_codes <- unique(data$code) # only one code present
-# Compute pairwise Levenshtein distance
-dist_matrix <- stringdist::stringdistmatrix(single_codes, single_codes, method = "lv")
-# Check pairs with distance ≤ 2
-for (i in seq_along(single_codes)) {
-  for (j in seq_along(single_codes)) {
-    if (i < j && dist_matrix[i, j] <= 2) {
-      cat(sprintf("Possible match: %s <-> %s (distance = %d)\n",
-                  single_codes[i], single_codes[j], dist_matrix[i, j]))
-    }
-  }
-}
+# Code corrections from levenshtein checks
 data$code[data$code == "mair10"] <- "moir10"
 data$code[data$code == "drch17"] <- "frch17"
 data$code[data$code == "loma26"] <- "goma26"
 data$code[data$code == "rosa21"] <- "rosa20"
 data$code[data$code == "sisu00"] <- "sisu01"
+data$code[data$code == "mosy24"] <- "stsy24"
+data$code[data$code == "frco30"] <- "scco30"
+data$code[data$code == "meli06"] <- "meli63"
+data$code[data$code == "waol30"] <- "spol30"
 
-# create new columns with scale naming
+# check code distances
+check_distances <- FALSE
+if (check_distances){
+  # finding typos in code
+  # get and save single instances of code
+  single_codes <- data %>%
+    count(code) %>%
+    filter(n == 1) %>%
+    pull(code)
+  # Get only the rows where code is in single_codes
+  data_single <- data %>%
+    filter(code %in% single_codes)
+  
+  # Now split the codes based on group
+  single_codes_pre <- data_single %>%
+    filter(time == "pre") %>%
+    pull(code)
+  
+  single_codes_post <- data_single %>%
+    filter(time == "post") %>%
+    pull(code)
+  
+  # 1. Compute the distance matrix
+  dist_matrix <- stringdistmatrix(a = single_codes_pre, b = single_codes_post, method = "lv")
+  
+  # 2. Convert to data frame with row and column names
+  dist_df <- as.data.frame(dist_matrix)
+  rownames(dist_df) <- single_codes_pre
+  colnames(dist_df) <- single_codes_post
+  
+  # 3. Extract the index positions where distance == 2
+  matches_2 <- which(dist_df == 2, arr.ind = TRUE)
+  
+  # 4. Create a data frame of those matches
+  matches_distance_2 <- data.frame(
+    pre_code = rownames(dist_df)[matches_2[, "row"]],
+    post_code = colnames(dist_df)[matches_2[, "col"]],
+    distance = 2
+  )
+  
+  # 5. View result
+  View(matches_distance_2)
+}
+
+# # create new columns with scale naming
+# data <- data %>%
+#   mutate(across(starts_with("TP01_"), identity, .names = "TPACK_TK_{str_sub(.col, -2)}")) %>%
+#   mutate(across(starts_with("TP02_"), identity, .names = "TPACK_TPK_{str_sub(.col, -2)}")) %>%
+#   mutate(across(starts_with("TP03_"), identity, .names = "TPACK_TCK_{str_sub(.col, -2)}")) %>%
+#   mutate(across(starts_with("TP04_"), identity, .names = "TPACK_TPACK_{str_sub(.col, -2)}")) %>%
+#   mutate(across(starts_with("TP05_"), identity, .names = "TPACK_Ethic_{str_sub(.col, -2)}"))
+
+```
+
+```{r Demographics}
+library(arsenal)
+library(forcats)
+
+# Create the formula
+demographics_formula <- ~ age  + gender + semester + studies + subject1 + subject2
+
+# Generate the tableby summary
+preprocess_data <- function(data) {
+  data %>%
+    droplevels() %>%
+    mutate(
+      studies  = fct_infreq(studies),
+      subject1 = fct_infreq(subject1),
+      subject2 = fct_infreq(subject2)
+    )
+}
+
+# only get data from pretest for demographic data
+data_pretest <- data %>% filter(time == "pre")
+
+# 1. Sprache
+data_sprache <- data_pretest %>%
+  filter(group == "sprache") %>%
+  preprocess_data()
+
+demographics_sprache <- tableby(demographics_formula, data = data_sprache)
+
+# 2. MINT Intervention
+data_mint_intervention <- data_pretest %>%
+  filter(group == "mint", intervention == TRUE) %>%
+  preprocess_data()
+
+demographics_mint_intervention <- tableby(demographics_formula, data = data_mint_intervention)
+
+# 3. MINT Kontrollgruppe
+data_mint_control <- data_pretest %>%
+  filter(group == "mint", intervention == FALSE) %>%
+  preprocess_data()
+
+demographics_mint_control <- tableby(demographics_formula, data = data_mint_control)
+
+# Ausgabe als Tabellen
+summary(demographics_sprache) %>%
+  as.data.frame() %>%
+  knitr::kable(caption = "Demographic Summary: Sprache-Gruppe")
+
+summary(demographics_mint_intervention) %>%
+  as.data.frame() %>%
+  knitr::kable(caption = "Demographic Summary: MINT Intervention")
+
+summary(demographics_mint_control) %>%
+  as.data.frame() %>%
+  knitr::kable(caption = "Demographic Summary: MINT Kontrollgruppe")
+
+```
+
+
+```{r Prepare scales}
+
+### grouping scales
+## TPACK
+# all TPACK items used
+list_items_i_tpack <- list(
+  "TK" = grep("^TP01_", names(data), value=T),
+  "TPK" = grep("^TP02_", names(data), value=T),
+  "TCK" = grep("^TP03_", names(data), value=T),
+  "TPACK" = grep("^TP04_", names(data), value=T),
+  "Ethics" = grep("^TP05_", names(data), value=T)
+)
+
+# TODO: ein paar ethik items müssen noch rausgenommen werden, die nur im posttest erhoben wurden
+# data_subset1 <- data %>% select(all_of(unlist(list_items_i_tpack)))
+# sum(data_subset1 < 0, na.rm = TRUE)
+
+## Perceived Usefulnes
+list_items_pu <- list(
+  "Pu" = grep("^ED03_", names(data), value=T)
+)
+# data_subset2 <- data %>% select(all_of(unlist(list_items_pu)))
+# sum(data_subset2 < 0, na.rm = TRUE)
+
+## Reflection
+list_items_ref <- list(
+  "Ref" = grep("^RE01_", names(data), value=T)
+)
+# data_subset3 <- data %>% select(all_of(unlist(list_items_ref)))
+# sum(data_subset3 < 0, na.rm = TRUE)
+
+## AI Literacy
+# TODO: do we want to split the results for each subscale?
+data <- data %>% mutate(AILIT_sumscore = AI35_02) # rename to sumscore
+
+# create new columns with the means of the lists
 data <- data %>%
-  mutate(across(starts_with("TP01_"), identity, .names = "TPACK_TK_{str_sub(.col, -2)}")) %>%
-  mutate(across(starts_with("TP02_"), identity, .names = "TPACK_TPK_{str_sub(.col, -2)}")) %>%
-  mutate(across(starts_with("TP03_"), identity, .names = "TPACK_TCK_{str_sub(.col, -2)}")) %>%
-  mutate(across(starts_with("TP04_"), identity, .names = "TPACK_TPACK_{str_sub(.col, -2)}")) %>%
-  mutate(across(starts_with("TP05_"), identity, .names = "TPACK_Ethic_{str_sub(.col, -2)}"))
+  mutate(
+    TK_mean     = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
+    TPK_mean    = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
+    TCK_mean    = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
+    TPACK_mean  = rowMeans(select(., all_of(list_items_i_tpack$TPACK)), na.rm = TRUE),
+    Ethics_mean = rowMeans(select(., all_of(list_items_i_tpack$Ethics)), na.rm = TRUE),
+    PU_mean     = rowMeans(select(., all_of(list_items_pu$Pu)), na.rm = TRUE),
+    Ref_mean    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
+    TPACK_total_mean = rowMeans(select(., all_of(unlist(list_items_i_tpack))), na.rm = TRUE)
+  )
 
-length(unique(data$code)) # only one code present
-sum(table(data$code) > 1) # code paare
-table(data$gender, data$QUESTNNR) # genders across pre/post in subjects
-table(data$location, data$QUESTNNR) # from where across pre/post in subjects
-table(data$mint_control)
-table(data$code, data$QUESTNNR)
+```
 
+```{r Mixed Effects Model}
+library(lme4)
+library(lmerTest)
+
+#### SPRACHE ####
+data_sprache <- data %>% filter(group == "sprache")
+data_pre <- data %>% filter(time == "pre")
+data_post <- data %>% filter(time == "post")
+
+# AI Lit Sumscore
+model_ailit_sprache <- lmer(AILIT_sumscore ~ time + age + gender + (1 | code), data = data_sprache)
+summary(model_ailit_sprache) # no sign.
+
+# Linear mixed model: TPACK_total_mean ~ time (fixed effect), with random intercept per person (code)
+model_tpack_sprache <- lmer(TPACK_total_mean ~ time + age + gender + (1 | code), data = data_sprache)
+summary(model_tpack_sprache) # sign.
+
+# Perceived Usefulness
+model_pu_sprache <- lmer(PU_mean ~ time + age + gender + (1 | code), data = data_sprache)
+summary(model_pu_sprache) # no sign.
+
+
+
+#### MINT ####
+data_mint <- data %>% filter(group == "mint")
+
+# AI Lit Sumscore
+model_ailit_mint <- lmer(AILIT_sumscore ~ time + age + gender + (1 | code), data = data_mint)
+summary(model_ailit_mint) # sign.
+model_ailit_loc_mint <- lmer(AILIT_sumscore ~ time * location + age + gender + (1 | code), data = data_mint)
+summary(model_ailit_loc_mint) # no sign. diff between phsg und phlb
+
+# Linear mixed effects model: TPACK_total_mean ~ time (fixed effect), with random intercept per person (code)
+model_tpack_mint <- lmer(TPACK_total_mean ~ time + age + gender + (1 | code), data = data_mint)
+summary(model_tpack_mint) # sign.
+model_tpack_loc_mint <- lmer(TPACK_total_mean ~ time * location + age + gender + (1 | code), data = data_mint)
+summary(model_tpack_loc_mint) # sign. PH Schwäbisch Gmünd shows a smaller improvement
+
+# Perceived Usefulness
+model_pu_mint <- lmer(PU_mean ~ time + age + gender + (1 | code), data = data_mint)
+summary(model_pu_mint) # no sign.
 ```
 
 # Clean data
 Clean up the data of each questionnaire for factor analysis. That is, we replace negative values (i.e., -1 = *did not understand the question*, -9 = no answer) with `NA`.
 Disclaimer: in the "ki-lehramt" study, we do not have missing answers (-9), as all questions regarding Intelligent-TPACK were mandatory.
 
-```{r clean data}
-# todo: check values (-1, -9)
-# look at ata of every questionnaire
-# AI Literacy
-data_ai <- data %>% select(-starts_with("ED"), -starts_with("TP"), -starts_with("RE"), -starts_with("STARTED"), -starts_with("FINISHED"),) 
-
-# Perceived Usefulness
-data_perc_use <- data %>%
-  select(-starts_with("AI"), -starts_with("TP"), -starts_with("RE"), -starts_with("STARTED"),
-         -starts_with("FINISHED"))
-# TPACK
-data_tpack <- data %>%
-  select(-starts_with("AI"), -starts_with("ED"), -starts_with("RE"), -starts_with("STARTED"),
-         -starts_with("FINISHED"))
-# Reflection
-data_ref <- data %>%
-  select(-starts_with("AI"), -starts_with("ED"), -starts_with("TP"), -starts_with("STARTED"),
-         -starts_with("FINISHED"))
 
 
-```
+<!-- ```{r not needed clean data} -->
+<!-- # todo: check values (-1, -9) -->
+<!-- # look at ata of every questionnaire -->
+<!-- #### AI Literacy -->
+<!-- data_ai <- data %>% select(-starts_with("ED"), -starts_with("TP"), -starts_with("RE"), -starts_with("STARTED"), -starts_with("FINISHED"),)  -->
+<!-- data_ai <- data_ai %>% mutate(sumscore = AI35_02) # rename to sumscore -->
+
+
+<!-- #### Perceived Usefulness (pu) -->
+<!-- data_perc_use <- data %>% -->
+<!--   select(-starts_with("AI"), -starts_with("TP"), -starts_with("RE"), -starts_with("STARTED"), -->
+<!--          -starts_with("FINISHED")) -->
+<!-- pu_cols <- data_perc_use %>% -->
+<!--   select(starts_with("ED")) %>% -->
+<!--   names() -->
+<!-- ## FRAGE: impute? -->
+<!-- # Create a copy to preserve original -->
+<!-- # data_perc_use_imputed <- data_perc_use -->
+
+<!-- # # Apply imputation row-by-row only to columns in `pu_cols` -- not needed -->
+<!-- # data_perc_use_imputed[pu_cols] <- t(apply(data_perc_use[pu_cols], 1, function(row) { -->
+<!-- #   valid_vals <- row[row >= 0 & !is.na(row)] -->
+<!-- #   if (length(valid_vals) == 0) return(row)  # skip if no valid values -->
+<!-- #   row[row < 0] <- round(mean(valid_vals)) -->
+<!-- #   return(row) -->
+<!-- # })) -->
+
+<!-- View(data_perc_use[, pu_cols])            # original -->
+<!-- View(data_perc_use_imputed[, pu_cols])    # after imputation -->
+
+
+<!-- #### TPACK -->
+<!-- data_tpack <- data %>% -->
+<!--   select(-starts_with("AI"), -starts_with("ED"), -starts_with("RE"), -starts_with("STARTED"), -->
+<!--          -starts_with("FINISHED")) -->
+
+
+<!-- #### Reflection -->
+<!-- data_ref <- data %>% -->
+<!--   select(-starts_with("AI"), -starts_with("ED"), -starts_with("TP"), -starts_with("STARTED"), -->
+<!--          -starts_with("FINISHED")) -->
+
+
+<!-- ``` -->
