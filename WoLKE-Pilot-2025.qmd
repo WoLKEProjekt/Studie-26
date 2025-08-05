@@ -163,11 +163,15 @@ e2 <- nrow(data[data$code == "höel07", ])
 e2
 data <- data[data$code != "höel07", ] #example code
 
+# check for multiple entries and completed questionnaires
+# view a specific code; obsu02 stfr08 (both multiple finished questionnaire, rowindex 1811)
+data <- data[!rownames(data) %in% c("1811", "1814"), ]
+# View(data[data$code == "obsu02", ])
+
 # Code corrections from levenshtein checks
 data$code[data$code == "mair10"] <- "moir10"
 data$code[data$code == "drch17"] <- "frch17"
 data$code[data$code == "loma26"] <- "goma26"
-data$code[data$code == "rosa21"] <- "rosa20"
 data$code[data$code == "sisu00"] <- "sisu01"
 data$code[data$code == "mosy24"] <- "stsy24"
 data$code[data$code == "frco30"] <- "scco30"
@@ -341,9 +345,17 @@ library(lme4)
 library(lmerTest)
 
 #### SPRACHE ####
-data_sprache <- data %>% filter(group == "sprache")
+# nur daten berücksichtigen die pre und post test haben
+data_sprache <- data %>%
+  filter(group == "sprache") %>%
+  group_by(code) %>%
+  filter(all(c("pre", "post") %in% time)) %>%
+  ungroup()
+#example
 data_pre <- data %>% filter(time == "pre")
 data_post <- data %>% filter(time == "post")
+#example
+data_pre_mint_contr <- data_pre %>% filter(group=="mint", intervention==FALSE)
 
 # AI Lit Sumscore
 model_ailit_sprache <- lmer(AILIT_sumscore ~ time + age + gender + (1 | code), data = data_sprache)
@@ -360,19 +372,28 @@ summary(model_pu_sprache) # no sign.
 
 
 #### MINT ####
-data_mint <- data %>% filter(group == "mint")
+# data_mint <- data %>% filter(group == "mint")
+data_mint <- data %>%
+  filter(group == "mint") %>%
+  group_by(code) %>%
+  filter(all(c("pre", "post") %in% time)) %>%
+  ungroup()
 
 # AI Lit Sumscore
 model_ailit_mint <- lmer(AILIT_sumscore ~ time + age + gender + (1 | code), data = data_mint)
 summary(model_ailit_mint) # sign.
 model_ailit_loc_mint <- lmer(AILIT_sumscore ~ time * location + age + gender + (1 | code), data = data_mint)
 summary(model_ailit_loc_mint) # no sign. diff between phsg und phlb
+model_ailit_contr_mint <- lmer(AILIT_sumscore ~ time * intervention + age + gender + (1 | code), data = data_mint)
+summary(model_ailit_contr_mint) # höherer posttest score als zum pretest, aber nicht verglichen der gruppen über zeit: intervention ist nicht unbedingt der grund warum die scores höher sind
 
 # Linear mixed effects model: TPACK_total_mean ~ time (fixed effect), with random intercept per person (code)
 model_tpack_mint <- lmer(TPACK_total_mean ~ time + age + gender + (1 | code), data = data_mint)
 summary(model_tpack_mint) # sign.
 model_tpack_loc_mint <- lmer(TPACK_total_mean ~ time * location + age + gender + (1 | code), data = data_mint)
-summary(model_tpack_loc_mint) # sign. PH Schwäbisch Gmünd shows a smaller improvement
+summary(model_tpack_loc_mint) # sign. PH Schwäbisch Gmünd shows a smaller improvement -> maybe cause of control?
+model_tpack_contr_mint <- lmer(TPACK_total_mean ~ time * intervention + age + gender + (1 | code), data = data_mint)
+summary(model_tpack_contr_mint) # control group did not improve, intervention improved sign. from pre to post (see interaction)
 
 # Perceived Usefulness
 model_pu_mint <- lmer(PU_mean ~ time + age + gender + (1 | code), data = data_mint)
