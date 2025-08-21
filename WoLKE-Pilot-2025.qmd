@@ -313,12 +313,13 @@ list_items_i_tpack <- list(
   "TK" = grep("^TP01_", names(data), value=T),
   "TPK" = grep("^TP02_", names(data), value=T),
   "TCK" = grep("^TP03_", names(data), value=T),
-  "TPACK" = grep("^TP04_", names(data), value=T),
+  "TPACK_appl" = grep("^TP04_(01|02|03|09|10|11|12|13|14)$", names(data), value=T), # Sub-Subskala 1: Anwendung
+  "TPACK_intrg" = grep("^TP04_(04|05|06|07|08|15)$", names(data), value=T), # Sub-Subskala 2: Integration
   "Ethics" = grep("^TP05_0[1-6]$", names(data), value=T) #im pretest nur items 1-6 vorhanden 7,8 kamen im post dazu
 )
 
 # ein paar ethik items müssen noch rausgenommen werden, die nur im posttest erhoben wurden. hier nur check
-# data_subset1 <- data %>% select(all_of(unlist(list_items_ref)))
+# data_subset1 <- data %>% select(all_of(unlist(list_items_i_tpack)))
 # View(data_subset1)
 
 ## Perceived Usefulnes
@@ -346,7 +347,8 @@ data <- data %>%
     TK_mean     = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
     TPK_mean    = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
     TCK_mean    = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
-    TPACK_mean  = rowMeans(select(., all_of(list_items_i_tpack$TPACK)), na.rm = TRUE),
+    TPACKappl_mean  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_appl)), na.rm = TRUE),
+    TPACKintrg_mean  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_intrg)), na.rm = TRUE),
     Ethics_mean = rowMeans(select(., all_of(list_items_i_tpack$Ethics)), na.rm = TRUE),
     PU_mean     = rowMeans(select(., all_of(list_items_pu$Pu)), na.rm = TRUE),
     # Ref_mean    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
@@ -373,7 +375,7 @@ data_sprache <- data %>%
 ## define variables
 random_terms_lmer <- c("(1 | code)")
 # groups <- c("intervention") 
-outcomes <- c("AILIT_sumscore", "TK_mean", "TPK_mean", "TCK_mean", "TPACK_mean", "Ethics_mean", "PU_mean")
+outcomes <- c("AILIT_sumscore", "TK_mean", "TPK_mean", "TCK_mean", "TPACKappl_mean", "TPACKintrg_mean", "Ethics_mean", "PU_mean")
 time <- "time" 
 controls <- c("age", "gender")
 
@@ -384,6 +386,7 @@ lmers_prepost <-
 modelsummary_models(lmers_prepost)
 ```
 
+Im folgenden verwenden wir drei Kontraste: (0) Intercept = Gesamtdurchschnitt aller Gruppen, (1) Exp-Ø (MINT+Sprache)/2 vs. Control, (2) Sprache vs. MINT. Mit der Zeit-Interaktion testen wir, ob sich diese Unterschiede über die Zeit unterschiedlich entwickeln (Difference-in-Differences: Exp-Ø vs. Control sowie Sprache vs. MINT).
 ``` {r lmer MINT vs Sprache vs Kontrollgruppe}
 data_all <- data %>%
   group_by(code) %>%
@@ -406,7 +409,7 @@ contrasts(data_all$intervention) <- contrasts.CvsExp
 ## define variables
 random_terms_lmer <- c("(1 | code)")
 groups <- c("intervention") 
-outcomes <- c("AILIT_sumscore", "TK_mean", "TPK_mean", "TCK_mean", "TPACK_mean", "Ethics_mean", "PU_mean")
+outcomes <- c("AILIT_sumscore", "TK_mean", "TPK_mean", "TCK_mean", "TPACKappl_mean", "TPACKintrg_mean", "Ethics_mean", "PU_mean")
 time <- "time" 
 controls <- c("age", "gender", "location")
 

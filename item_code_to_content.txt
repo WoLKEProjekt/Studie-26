@@ -102,21 +102,21 @@ TP03_02
 TP03_03
 TP03_04
 TP03_05
-TP04_01     TPACK iTPACK
-TP04_02
-TP04_03
-TP04_04
-TP04_05
-TP04_06
-TP04_07
-TP04_08
-TP04_09
-TP04_10
-TP04_11
-TP04_12
-TP04_13
-TP04_14
-TP04_15
+TP04_01     TPACK iTPACK cat1 (anwendung) cat2 (integration)
+TP04_02     cat1
+TP04_03     cat1
+TP04_04     cat2
+TP04_05     cat2
+TP04_06     cat2
+TP04_07     cat2
+TP04_08     cat2
+TP04_09     cat1
+TP04_10     cat1
+TP04_11     cat1
+TP04_12     cat1
+TP04_13     cat1
+TP04_14     cat1
+TP04_15     cat2
 TP05_01     TPACK Ethik
 TP05_02
 TP05_07     wird zu Ethics3
