@@ -25,12 +25,13 @@ format:
 
 ## Load Libraries
 
-```{r load-libraries}
+```{r load-libraries and functions}
 library(this.path)
 suppressPackageStartupMessages(library(dplyr)) #e.g. for select
 library(tidyr) # for reshaping data
 suppressPackageStartupMessages(library(stringdist)) #levenshtein
 library(stringr) # for reshaping data
+source(file="functions.r") # all outsourced funtions
 ```
 
 ## Load Pre- and Posttest and Reshape Data
@@ -71,8 +72,8 @@ data_pre <- data_pre %>%
       str_to_lower(as.character(DE07)) == "ja" ~ TRUE,
       str_to_lower(as.character(DE07)) == "nein" ~ FALSE
     ),
-    intervention = coalesce(intervention_sprache, FALSE) | coalesce(intervention_mint, FALSE),
-    intervention = as.logical(intervention)
+    intervention_only = coalesce(intervention_sprache, FALSE) | coalesce(intervention_mint, FALSE),
+    intervention_only = as.logical(intervention_only)
   )
 data_pre <- data_pre[, c("code", setdiff(names(data_pre), "code"))] #set code as first column
 # View(data_pre[(is.na(data_pre$code) | data_pre$code == ""), ])
@@ -111,8 +112,8 @@ data_post <- data_post %>%
       str_to_lower(as.character(DE07)) == "ja" ~ TRUE,
       str_to_lower(as.character(DE07)) == "nein" ~ FALSE
     ),
-    intervention = coalesce(intervention_sprache, FALSE) | coalesce(intervention_mint, FALSE),
-    intervention = as.logical(intervention)
+    intervention_only = coalesce(intervention_sprache, FALSE) | coalesce(intervention_mint, FALSE),
+    intervention_only = as.logical(intervention_only)
   )
 data_post <- data_post[, c("code", setdiff(names(data_post), "code"))] #set code as first column
 # View(data_post[(is.na(data_post$code) | data_post$code == ""), ])
@@ -147,7 +148,7 @@ data <- data %>%
 data$gender <- factor(data$gender)
 data$location <- factor(data$location)
 
-# create relevant columns group and time
+# create relevant columns group (sprache mint), time (pre, post) and intervention (control, mint, sprache)
 data <- data %>%
   mutate(
     group = case_when(
@@ -159,8 +160,13 @@ data <- data %>%
       TRUE ~ "pre"
     ),
     group = factor(group),
-    time = factor(time)
+    time = factor(time, levels=c("pre","post"))
   )
+
+data <- data %>% mutate(
+  intervention = factor(ifelse(intervention_only == F, "control",
+  ifelse(group == "mint", "mint", "sprache")))
+)
 
 ### EXCLUSIONS
 e1 <- nrow(data[data$FINISHED == "FALSE", ]) # not FINISHED
@@ -227,7 +233,7 @@ if (check_distances){
   )
   
   # 5. View result
-  View(matches_distance_2)
+  # View(matches_distance_2)
 }
 
 # # create new columns with scale naming
@@ -270,14 +276,14 @@ demographics_sprache <- tableby(demographics_formula, data = data_sprache)
 
 # 2. MINT Intervention
 data_mint_intervention <- data_pretest %>%
-  filter(group == "mint", intervention == TRUE) %>%
+  filter(group == "mint", intervention_only == TRUE) %>%
   preprocess_data()
 
 demographics_mint_intervention <- tableby(demographics_formula, data = data_mint_intervention)
 
 # 3. MINT Kontrollgruppe
 data_mint_control <- data_pretest %>%
-  filter(group == "mint", intervention == FALSE) %>%
+  filter(group == "mint", intervention_only == FALSE) %>%
   preprocess_data()
 
 demographics_mint_control <- tableby(demographics_formula, data = data_mint_control)
@@ -308,12 +314,12 @@ list_items_i_tpack <- list(
   "TPK" = grep("^TP02_", names(data), value=T),
   "TCK" = grep("^TP03_", names(data), value=T),
   "TPACK" = grep("^TP04_", names(data), value=T),
-  "Ethics" = grep("^TP05_", names(data), value=T)
+  "Ethics" = grep("^TP05_0[1-6]$", names(data), value=T) #im pretest nur items 1-6 vorhanden 7,8 kamen im post dazu
 )
 
-# TODO: ein paar ethik items müssen noch rausgenommen werden, die nur im posttest erhoben wurden
-# data_subset1 <- data %>% select(all_of(unlist(list_items_i_tpack)))
-# sum(data_subset1 < 0, na.rm = TRUE)
+# ein paar ethik items müssen noch rausgenommen werden, die nur im posttest erhoben wurden. hier nur check
+# data_subset1 <- data %>% select(all_of(unlist(list_items_ref)))
+# View(data_subset1)
 
 ## Perceived Usefulnes
 list_items_pu <- list(
@@ -322,35 +328,39 @@ list_items_pu <- list(
 # data_subset2 <- data %>% select(all_of(unlist(list_items_pu)))
 # sum(data_subset2 < 0, na.rm = TRUE)
 
-## Reflection
-list_items_ref <- list(
-  "Ref" = grep("^RE01_", names(data), value=T)
-)
+## Reflection (bei Piloten irrelevant)
+# list_items_ref <- list(
+#   "Ref" = grep("^RE01_", names(data), value=T)
+# )
 # data_subset3 <- data %>% select(all_of(unlist(list_items_ref)))
 # sum(data_subset3 < 0, na.rm = TRUE)
 
 ## AI Literacy
 # TODO: do we want to split the results for each subscale?
-data <- data %>% mutate(AILIT_sumscore = AI35_02) # rename to sumscore
+# data <- data %>% mutate(AILIT_sumscore = AI35_02) # rename to sumscore
 
 # create new columns with the means of the lists
 data <- data %>%
   mutate(
+    AILIT_sumscore = AI35_02,
     TK_mean     = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
     TPK_mean    = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
     TCK_mean    = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
     TPACK_mean  = rowMeans(select(., all_of(list_items_i_tpack$TPACK)), na.rm = TRUE),
     Ethics_mean = rowMeans(select(., all_of(list_items_i_tpack$Ethics)), na.rm = TRUE),
     PU_mean     = rowMeans(select(., all_of(list_items_pu$Pu)), na.rm = TRUE),
-    Ref_mean    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
+    # Ref_mean    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
     TPACK_total_mean = rowMeans(select(., all_of(unlist(list_items_i_tpack))), na.rm = TRUE)
   )
 
 ```
 
-```{r Mixed Effects Model}
+```{r lmer Sprache}
 library(lme4)
 library(lmerTest)
+library(emmeans)
+library(modelsummary)
+library(kableExtra)
 
 #### SPRACHE ####
 # nur daten berücksichtigen die pre und post test haben
@@ -359,23 +369,61 @@ data_sprache <- data %>%
   group_by(code) %>%
   filter(all(c("pre", "post") %in% time)) %>%
   ungroup()
-#example
-data_pre <- data %>% filter(time == "pre")
-data_post <- data %>% filter(time == "post")
-#example
-data_pre_mint_contr <- data_pre %>% filter(group=="mint", intervention==FALSE)
 
-# AI Lit Sumscore
-model_ailit_sprache <- lmer(AILIT_sumscore ~ time + age + gender + (1 | code), data = data_sprache)
-summary(model_ailit_sprache) # no sign.
+## define variables
+random_terms_lmer <- c("(1 | code)")
+# groups <- c("intervention") 
+outcomes <- c("AILIT_sumscore", "TK_mean", "TPK_mean", "TCK_mean", "TPACK_mean", "Ethics_mean", "PU_mean")
+time <- "time" 
+controls <- c("age", "gender")
 
-# Linear mixed model: TPACK_total_mean ~ time (fixed effect), with random intercept per person (code)
-model_tpack_sprache <- lmer(TPACK_total_mean ~ time + age + gender + (1 | code), data = data_sprache)
-summary(model_tpack_sprache) # sign.
+# groups set as NA
+lmers_prepost <-
+  lapply(outcomes, fit_lmer, NULL, time, controls, random_terms_lmer, NULL, data= data_sprache)
 
-# Perceived Usefulness
-model_pu_sprache <- lmer(PU_mean ~ time + age + gender + (1 | code), data = data_sprache)
-summary(model_pu_sprache) # no sign.
+modelsummary_models(lmers_prepost)
+```
+
+``` {r lmer MINT vs Sprache vs Kontrollgruppe}
+data_all <- data %>%
+  group_by(code) %>%
+  filter(all(c("pre", "post") %in% time)) %>%
+  ungroup()
+
+## define contrast Control vs Exp1+Exp2 - vermutlich bessere version, da die Estimates "stimmen"
+mat <- cbind(c(1 / 3, 1 / 3, 1 / 3), # Durchschnitt aller 3 Gruppen
+  c(-1, .5, .5),                     # Vergleich Control vs Mittel der beiden Interventions-Gruppen
+  c(0, -1, 1))                       # Vergleich Sprache vs MINT
+contrasts.CvsExp <- solve(t(mat))[, -1]
+colnames(contrasts.CvsExp) <- c("-C+MINT_Sprache", "-MINT+Sprache")
+contrasts(data_all$intervention) <- contrasts.CvsExp
+
+# or use this coding system?
+# my.helmert <- matrix(c(-2 / 3, 1 / 3, 1 / 3, 0, -1 / 3, 1 / 3), ncol = 2)
+# colnames(my.helmert) <- c("-C+MINT_Sprache", "-MINT+Sprache")
+# contrasts(data$cond2) <- my.helmert
+
+## define variables
+random_terms_lmer <- c("(1 | code)")
+groups <- c("intervention") 
+outcomes <- c("AILIT_sumscore", "TK_mean", "TPK_mean", "TCK_mean", "TPACK_mean", "Ethics_mean", "PU_mean")
+time <- "time" 
+controls <- c("age", "gender", "location")
+
+# groups set as NA
+lmers_prepost_all <-
+  lapply(outcomes, fit_lmer, groups, time, controls, random_terms_lmer, NULL, data= data_all)
+
+modelsummary_models(lmers_prepost_all)
+
+
+# mm <- lmer(PU_mean ~ time*intervention + age + gender + (1 | code), data = data %>% filter(all(c("pre", "post") %in% time)))
+# mm %>% summary(corr=F)
+# emmeans(mm, ~ intervention*time, lmer.df = "satterthwaite") %>% contrast(interaction = "pairwise", adjust="none")
+```
+
+
+``` {r old code}
 
 # Pre/Post-Effekt auf CT
 model_ct_sprache <- lmer(
@@ -488,55 +536,3 @@ model_ct_timeXint_mint_sg <- lmer(
 summary(model_ct_timeXint_mint_sg)
 
 ```
-
-
-# Clean data
-Clean up the data of each questionnaire for factor analysis. That is, we replace negative values (i.e., -1 = *did not understand the question*, -9 = no answer) with `NA`.
-Disclaimer: in the "ki-lehramt" study, we do not have missing answers (-9), as all questions regarding Intelligent-TPACK were mandatory.
-
-
-
-<!-- ```{r not needed clean data} -->
-<!-- # todo: check values (-1, -9) -->
-<!-- # look at ata of every questionnaire -->
-<!-- #### AI Literacy -->
-<!-- data_ai <- data %>% select(-starts_with("ED"), -starts_with("TP"), -starts_with("RE"), -starts_with("STARTED"), -starts_with("FINISHED"),)  -->
-<!-- data_ai <- data_ai %>% mutate(sumscore = AI35_02) # rename to sumscore -->
-
-
-<!-- #### Perceived Usefulness (pu) -->
-<!-- data_perc_use <- data %>% -->
-<!--   select(-starts_with("AI"), -starts_with("TP"), -starts_with("RE"), -starts_with("STARTED"), -->
-<!--          -starts_with("FINISHED")) -->
-<!-- pu_cols <- data_perc_use %>% -->
-<!--   select(starts_with("ED")) %>% -->
-<!--   names() -->
-<!-- ## FRAGE: impute? -->
-<!-- # Create a copy to preserve original -->
-<!-- # data_perc_use_imputed <- data_perc_use -->
-
-<!-- # # Apply imputation row-by-row only to columns in `pu_cols` -- not needed -->
-<!-- # data_perc_use_imputed[pu_cols] <- t(apply(data_perc_use[pu_cols], 1, function(row) { -->
-<!-- #   valid_vals <- row[row >= 0 & !is.na(row)] -->
-<!-- #   if (length(valid_vals) == 0) return(row)  # skip if no valid values -->
-<!-- #   row[row < 0] <- round(mean(valid_vals)) -->
-<!-- #   return(row) -->
-<!-- # })) -->
-
-<!-- View(data_perc_use[, pu_cols])            # original -->
-<!-- View(data_perc_use_imputed[, pu_cols])    # after imputation -->
-
-
-<!-- #### TPACK -->
-<!-- data_tpack <- data %>% -->
-<!--   select(-starts_with("AI"), -starts_with("ED"), -starts_with("RE"), -starts_with("STARTED"), -->
-<!--          -starts_with("FINISHED")) -->
-
-
-<!-- #### Reflection -->
-<!-- data_ref <- data %>% -->
-<!--   select(-starts_with("AI"), -starts_with("ED"), -starts_with("TP"), -starts_with("STARTED"), -->
-<!--          -starts_with("FINISHED")) -->
-
-
-<!-- ``` -->

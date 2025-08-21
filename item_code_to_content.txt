@@ -119,12 +119,12 @@ TP04_14
 TP04_15
 TP05_01     TPACK Ethik
 TP05_02
-TP05_07
-TP05_08
+TP05_07     wird zu Ethics3
+TP05_08     ...
 TP05_03
 TP05_04
-TP05_05
-TP05_06
+TP05_05     
+TP05_06     
 RE01_01     Reflexion
 RE01_13
 RE01_02
