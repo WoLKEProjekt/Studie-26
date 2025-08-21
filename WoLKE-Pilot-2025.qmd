@@ -315,6 +315,7 @@ list_items_i_tpack <- list(
   "TCK" = grep("^TP03_", names(data), value=T),
   "TPACK_appl" = grep("^TP04_(01|02|03|09|10|11|12|13|14)$", names(data), value=T), # Sub-Subskala 1: Anwendung
   "TPACK_intrg" = grep("^TP04_(04|05|06|07|08|15)$", names(data), value=T), # Sub-Subskala 2: Integration
+  "TPACK_genai" = grep("^TP04_(09|10|11|13|14)$", names(data), value=T), # Sub-Subskala 3: GenAI Items
   "Ethics" = grep("^TP05_0[1-6]$", names(data), value=T) #im pretest nur items 1-6 vorhanden 7,8 kamen im post dazu
 )
 
@@ -338,21 +339,23 @@ list_items_pu <- list(
 
 ## AI Literacy
 # TODO: do we want to split the results for each subscale?
-# data <- data %>% mutate(AILIT_sumscore = AI35_02) # rename to sumscore
+# data <- data %>% mutate(AILIT = AI35_02) # rename to sumscore
 
 # create new columns with the means of the lists
 data <- data %>%
   mutate(
-    AILIT_sumscore = AI35_02,
-    TK_mean     = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
-    TPK_mean    = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
-    TCK_mean    = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
-    TPACKappl_mean  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_appl)), na.rm = TRUE),
-    TPACKintrg_mean  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_intrg)), na.rm = TRUE),
-    Ethics_mean = rowMeans(select(., all_of(list_items_i_tpack$Ethics)), na.rm = TRUE),
-    PU_mean     = rowMeans(select(., all_of(list_items_pu$Pu)), na.rm = TRUE),
-    # Ref_mean    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
-    TPACK_total_mean = rowMeans(select(., all_of(unlist(list_items_i_tpack))), na.rm = TRUE)
+    AILIT = AI35_02,
+    TK     = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
+    TPK    = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
+    TCK    = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
+    TPACKappl  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_appl)), na.rm = TRUE),
+    TPACKintrg  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_intrg)), na.rm = TRUE),
+    TPACKintrg  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_intrg)), na.rm = TRUE),
+    TPACKgenai  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_genai)), na.rm = TRUE),
+    Ethics = rowMeans(select(., all_of(list_items_i_tpack$Ethics)), na.rm = TRUE),
+    PU     = rowMeans(select(., all_of(list_items_pu$Pu)), na.rm = TRUE),
+    # Ref    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
+    TPACK_total = rowMeans(select(., all_of(unlist(list_items_i_tpack))), na.rm = TRUE)
   )
 
 ```
@@ -375,7 +378,7 @@ data_sprache <- data %>%
 ## define variables
 random_terms_lmer <- c("(1 | code)")
 # groups <- c("intervention") 
-outcomes <- c("AILIT_sumscore", "TK_mean", "TPK_mean", "TCK_mean", "TPACKappl_mean", "TPACKintrg_mean", "Ethics_mean", "PU_mean")
+outcomes <- c("AILIT", "TK", "TPK", "TCK", "TPACKappl", "TPACKintrg", "TPACKgenai", "Ethics", "PU")
 time <- "time" 
 controls <- c("age", "gender")
 
@@ -409,7 +412,7 @@ contrasts(data_all$intervention) <- contrasts.CvsExp
 ## define variables
 random_terms_lmer <- c("(1 | code)")
 groups <- c("intervention") 
-outcomes <- c("AILIT_sumscore", "TK_mean", "TPK_mean", "TCK_mean", "TPACKappl_mean", "TPACKintrg_mean", "Ethics_mean", "PU_mean")
+outcomes <- c("AILIT", "TK", "TPK", "TCK", "TPACKappl", "TPACKintrg", "TPACKgenai", "Ethics", "PU")
 time <- "time" 
 controls <- c("age", "gender", "location")
 
@@ -420,7 +423,7 @@ lmers_prepost_all <-
 modelsummary_models(lmers_prepost_all)
 
 
-# mm <- lmer(PU_mean ~ time*intervention + age + gender + (1 | code), data = data %>% filter(all(c("pre", "post") %in% time)))
+# mm <- lmer(PU ~ time*intervention + age + gender + (1 | code), data = data %>% filter(all(c("pre", "post") %in% time)))
 # mm %>% summary(corr=F)
 # emmeans(mm, ~ intervention*time, lmer.df = "satterthwaite") %>% contrast(interaction = "pairwise", adjust="none")
 ```
@@ -459,15 +462,15 @@ data_mint_sg <- data_mint %>%
   filter(location == "PH Schwäbisch Gmünd")
 
 # 3. AI lit Sumscore mit Intervention vs. Kontrollgruppe, nur für Schwäbisch Gmünd
-model_ailit_contr_mint_sg <- lmer(AILIT_sumscore ~ time * intervention + age + gender + (1 | code), data = data_mint_sg)
+model_ailit_contr_mint_sg <- lmer(AILIT ~ time * intervention + age + gender + (1 | code), data = data_mint_sg)
 summary(model_ailit_contr_mint_sg)
 
 # TPACK-Modelle nur für Schwäbisch Gmünd: Zeit (pre vs. post)
-model_tpack_mint_sg <- lmer(TPACK_total_mean ~ time + age + gender + (1 | code), data = data_mint_sg)
+model_tpack_mint_sg <- lmer(TPACK_total ~ time + age + gender + (1 | code), data = data_mint_sg)
 summary(model_tpack_mint_sg)
 
 # Interaktion: Zeit * Intervention
-model_tpack_int_contr_mint_sg <- lmer(TPACK_total_mean ~ time * intervention + age + gender + (1 | code), data = data_mint_sg)
+model_tpack_int_contr_mint_sg <- lmer(TPACK_total ~ time * intervention + age + gender + (1 | code), data = data_mint_sg)
 # summary(model_tpack_contr_mint_sg) TODO: fix Error in h(simpleError(msg, call)) :  error in evaluating the argument 'object' in selecting a method for function 'summary': object 'model_tpack_contr_mint_sg' not found
 
 
@@ -480,23 +483,23 @@ data_mint <- data %>%
   ungroup()
 
 # AI Lit Sumscore
-model_ailit_mint <- lmer(AILIT_sumscore ~ time + age + gender + (1 | code), data = data_mint)
+model_ailit_mint <- lmer(AILIT ~ time + age + gender + (1 | code), data = data_mint)
 summary(model_ailit_mint) # sign.
-model_ailit_loc_mint <- lmer(AILIT_sumscore ~ time * location + age + gender + (1 | code), data = data_mint)
+model_ailit_loc_mint <- lmer(AILIT ~ time * location + age + gender + (1 | code), data = data_mint)
 summary(model_ailit_loc_mint) # no sign. diff between phsg und phlb
-model_ailit_contr_mint <- lmer(AILIT_sumscore ~ time * intervention + age + gender + (1 | code), data = data_mint)
+model_ailit_contr_mint <- lmer(AILIT ~ time * intervention + age + gender + (1 | code), data = data_mint)
 summary(model_ailit_contr_mint) # höherer posttest score als zum pretest, aber nicht verglichen der gruppen über zeit: intervention ist nicht unbedingt der grund warum die scores höher sind
 
-# Linear mixed effects model: TPACK_total_mean ~ time (fixed effect), with random intercept per person (code)
-model_tpack_mint <- lmer(TPACK_total_mean ~ time + age + gender + (1 | code), data = data_mint)
+# Linear mixed effects model: TPACK_total ~ time (fixed effect), with random intercept per person (code)
+model_tpack_mint <- lmer(TPACK_total ~ time + age + gender + (1 | code), data = data_mint)
 summary(model_tpack_mint) # sign.
-model_tpack_loc_mint <- lmer(TPACK_total_mean ~ time * location + age + gender + (1 | code), data = data_mint)
+model_tpack_loc_mint <- lmer(TPACK_total ~ time * location + age + gender + (1 | code), data = data_mint)
 summary(model_tpack_loc_mint) # sign. PH Schwäbisch Gmünd shows a smaller improvement -> maybe cause of control?
-model_tpack_contr_mint <- lmer(TPACK_total_mean ~ time * intervention + age + gender + (1 | code), data = data_mint)
+model_tpack_contr_mint <- lmer(TPACK_total ~ time * intervention + age + gender + (1 | code), data = data_mint)
 summary(model_tpack_contr_mint) # control group did not improve, intervention improved sign. from pre to post (see interaction)
 
 # Perceived Usefulness
-model_pu_mint <- lmer(PU_mean ~ time + age + gender + (1 | code), data = data_mint)
+model_pu_mint <- lmer(PU ~ time + age + gender + (1 | code), data = data_mint)
 summary(model_pu_mint) # no sign.
 
 
