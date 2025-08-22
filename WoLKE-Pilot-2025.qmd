@@ -25,12 +25,20 @@ format:
 
 ## Load Libraries
 
-```{r load-libraries and functions}
+```{r load-libraries-and-functions}
+#| output: false
 library(this.path)
-suppressPackageStartupMessages(library(dplyr)) #e.g. for select
+library(dplyr) #e.g. for select
 library(tidyr) # for reshaping data
-suppressPackageStartupMessages(library(stringdist)) #levenshtein
+library(stringdist) #levenshtein
 library(stringr) # for reshaping data
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(modelsummary)
+library(kableExtra)
+library(arsenal)
+library(forcats) 
 source(file="functions.r") # all outsourced funtions
 ```
 
@@ -193,7 +201,7 @@ data$code[data$code == "meli06"] <- "meli63"
 data$code[data$code == "waol30"] <- "spol30"
 
 # check code distances
-check_distances <- FALSE
+check_distances <- F
 if (check_distances){
   # finding typos in code
   # get and save single instances of code
@@ -247,12 +255,6 @@ if (check_distances){
 ```
 
 ```{r Demographics}
-library(arsenal)
-library(forcats)
-
-# Create the formula
-demographics_formula <- ~ age  + gender + semester + studies + subject1 + subject2
-
 # Generate the tableby summary
 preprocess_data <- function(data) {
   data %>%
@@ -264,45 +266,67 @@ preprocess_data <- function(data) {
     )
 }
 
-# only get data from pretest for demographic data
-data_pretest <- data %>% filter(time == "pre")
+# only get data from pretest for demographic data to see registered
+data_pretest <- data %>% 
+  filter(time == "pre")
+nrow(data_pretest)
 
-# 1. Sprache
-data_sprache <- data_pretest %>%
-  filter(group == "sprache") %>%
-  preprocess_data()
+# only take samples with pre and post test data into account, singlecodes
+data_dem_all <- data %>%
+  group_by(code) %>%
+  filter(all(c("pre", "post") %in% time)) %>%
+  filter(time == "post") %>%
+  ungroup()
+nrow(data_dem_all)
 
-demographics_sprache <- tableby(demographics_formula, data = data_sprache)
-
-# 2. MINT Intervention
-data_mint_intervention <- data_pretest %>%
-  filter(group == "mint", intervention_only == TRUE) %>%
-  preprocess_data()
-
-demographics_mint_intervention <- tableby(demographics_formula, data = data_mint_intervention)
-
-# 3. MINT Kontrollgruppe
-data_mint_control <- data_pretest %>%
-  filter(group == "mint", intervention_only == FALSE) %>%
-  preprocess_data()
-
-demographics_mint_control <- tableby(demographics_formula, data = data_mint_control)
+# Create the formula
+demographics_formula <- intervention ~  location + age  + gender + semester + isp + studies + subject1 + subject2
+demographics <- tableby(demographics_formula, data = data_dem_all)
 
 # Ausgabe als Tabellen
-summary(demographics_sprache) %>%
+summary(demographics) %>%
   as.data.frame() %>%
-  knitr::kable(caption = "Demographic Summary: Sprache-Gruppe")
+  knitr::kable(caption = "Demographic Summary")
 
-summary(demographics_mint_intervention) %>%
-  as.data.frame() %>%
-  knitr::kable(caption = "Demographic Summary: MINT Intervention")
+# ---------
 
-summary(demographics_mint_control) %>%
-  as.data.frame() %>%
-  knitr::kable(caption = "Demographic Summary: MINT Kontrollgruppe")
+# # 1. Sprache
+# data_sprache <- data_pretest %>%
+#   filter(group == "sprache") %>%
+#   preprocess_data()
+
+# demographics_sprache <- tableby(demographics_formula, data = data_sprache)
+
+# # 2. MINT Intervention
+# data_mint_intervention <- data_pretest %>%
+#   filter(group == "mint", intervention_only == TRUE) %>%
+#   preprocess_data()
+
+# demographics_mint_intervention <- tableby(demographics_formula, data = data_mint_intervention)
+
+# # 3. MINT Kontrollgruppe
+# data_mint_control <- data_pretest %>%
+#   filter(group == "mint", intervention_only == FALSE) %>%
+#   preprocess_data()
+
+# demographics_mint_control <- tableby(demographics_formula, data = data_mint_control)
+
+# # Ausgabe als Tabellen
+# summary(demographics_sprache) %>%
+#   as.data.frame() %>%
+#   knitr::kable(caption = "Demographic Summary: Sprache-Gruppe")
+
+# summary(demographics_mint_intervention) %>%
+#   as.data.frame() %>%
+#   knitr::kable(caption = "Demographic Summary: MINT Intervention")
+
+# summary(demographics_mint_control) %>%
+#   as.data.frame() %>%
+#   knitr::kable(caption = "Demographic Summary: MINT Kontrollgruppe")
+
+# TODO: only n's of both timepoints
 
 ```
-
 
 ```{r Prepare scales}
 
@@ -360,12 +384,7 @@ data <- data %>%
 
 ```
 
-```{r lmer Sprache}
-library(lme4)
-library(lmerTest)
-library(emmeans)
-library(modelsummary)
-library(kableExtra)
+```{r lmer-Sprache}
 
 #### SPRACHE ####
 # nur daten berücksichtigen die pre und post test haben
@@ -379,7 +398,7 @@ data_sprache <- data %>%
 random_terms_lmer <- c("(1 | code)")
 # groups <- c("intervention") 
 outcomes <- c("AILIT", "TK", "TPK", "TCK", "TPACKappl", "TPACKintrg", "TPACKgenai", "Ethics", "PU")
-time <- "time" 
+time <- "time"
 controls <- c("age", "gender")
 
 # groups set as NA
@@ -411,23 +430,37 @@ contrasts(data_all$intervention) <- contrasts.CvsExp
 
 ## define variables
 random_terms_lmer <- c("(1 | code)")
-groups <- c("intervention") 
+groups <- c("intervention")
 outcomes <- c("AILIT", "TK", "TPK", "TCK", "TPACKappl", "TPACKintrg", "TPACKgenai", "Ethics", "PU")
-time <- "time" 
+time <- "time"
 controls <- c("age", "gender", "location")
 
 # groups set as NA
 lmers_prepost_all <-
-  lapply(outcomes, fit_lmer, groups, time, controls, random_terms_lmer, NULL, data= data_all)
+  lapply(outcomes, fit_lmer, groups, time, controls, random_terms_lmer, NULL, data = data_all)
 
 modelsummary_models(lmers_prepost_all)
 
 
+# ---------- klappt nich lol
+data_sg <- data %>%
+  group_by(code) %>%
+  filter(all(c("pre", "post") %in% time)) %>%
+  filter(location=="PH Schwäbisch Gmünd") %>%
+  ungroup()
+controls <- c("age", "gender")
+
+lmers_prepost_sg <-
+  lapply(outcomes, lmer, NULL, time, controls, random_terms_lmer, NULL, data = data_sg)
+
+modelsummary_models(lmers_prepost_sg)
+
+
+
 # mm <- lmer(PU ~ time*intervention + age + gender + (1 | code), data = data %>% filter(all(c("pre", "post") %in% time)))
 # mm %>% summary(corr=F)
-# emmeans(mm, ~ intervention*time, lmer.df = "satterthwaite") %>% contrast(interaction = "pairwise", adjust="none")
+# emmeans(lmers_prepost_all[[1]], ~ intervention*time|location, lmer.df = "satterthwaite") %>% contrast(interaction = "pairwise", adjust="none")
 ```
-
 
 ``` {r old code}
 
