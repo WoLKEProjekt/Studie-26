@@ -9,3 +9,7 @@ rdata_ki-lehramt_*.csv
 .DS_Store
 
 data/code_distances.txt
+
+data/data.Rdata
+
+WoLKE-Pilot-2025_cache/

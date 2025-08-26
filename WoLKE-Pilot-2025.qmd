@@ -8,6 +8,8 @@ document-css: false
 link-citations: true
 number-sections: true
 editor: visual
+execute:
+  cache: true
 format:
   html:
     standalone: true
@@ -47,16 +49,20 @@ source(file="functions.r") # all outsourced funtions
 ```{r load-data}
 # Set working directory to the script's location
 setwd(this.path::this.dir())
-### PRETEST
+### Load Data
 # load csv -> df_pre
-source("./data/import_ki-lehramt_2025-07-24_08-36.r")
+source("./data/import_ki-lehramt.r")
 
 # extract items starting with TP (TPACK) or DE (Demographics)
-data_pre <- df_pre %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("RE"), starts_with("CT"), starts_with("STARTED"), starts_with("FINISHED"))
-data_pre$QUESTNNR[substr(data_pre$STARTED, 6, 7) == "07"] <- "mint-post" # fixe some wrong entries in pre list to post
+data_raw <- df %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("RE"), starts_with("CT"), starts_with("STARTED"), starts_with("FINISHED"))
+# sum(data_raw$QUESTNNR == "mint-post") # 10 are incorrectly labeled
+data_raw$QUESTNNR[
+  substr(data_raw$STARTED, 6, 7) == "07" &
+  grepl("mint", data_raw$QUESTNNR)
+] <- "mint-post" # fixe some wrong entries in pre list to post
 
 # rename demographics
-data_pre <- data_pre %>%
+data_raw <- data_raw %>%
   mutate(
     code       = tolower(DE13_01),
     age        = DE14_01,
@@ -83,78 +89,19 @@ data_pre <- data_pre %>%
     intervention_only = coalesce(intervention_sprache, FALSE) | coalesce(intervention_mint, FALSE),
     intervention_only = as.logical(intervention_only)
   )
-data_pre <- data_pre[, c("code", setdiff(names(data_pre), "code"))] #set code as first column
-# View(data_pre[(is.na(data_pre$code) | data_pre$code == ""), ])
-data_pre <- data_pre[!(is.na(data_pre$code) | data_pre$code == ""), ] # remove empty/na codes (=7) -> 1 stimmt Datenschutz nicht zu
-
-#### POSTTEST
-
-# load csv -> df_post
-source("./data/import_ki-lehramt_2025-07-24_08-35.r")
-
-# extract items starting with
-data_post <- df_post %>% select(QUESTNNR, starts_with("DE"), starts_with("AI"), starts_with("ED"), starts_with("TP"), starts_with("RE"), starts_with("CT"), starts_with("STARTED"), starts_with("FINISHED"))
-
-# rename demographics
-data_post <- data_post %>%
-  mutate(
-    code       = tolower(DE13_01),
-    age        = DE14_01,
-    semester   = DE15_01,
-    studies    = DE16,
-    subject1   = DE24,
-    subject2   = DE25,
-    gender     = DE10,
-    location   = DE11,
-    semestercount = DE15_01,
-    isp        = DE09,
-    # sprache_intervention = DE08,
-    #sprache_info = DE06, #already visited cans KI seminar
-    # mint_control = DE07,
-    mint_exclusion = DE02,
-    intervention_sprache = case_when(
-      str_to_lower(as.character(DE08)) == "ja" ~ TRUE,
-      str_to_lower(as.character(DE08)) == "nein" ~ FALSE
-    ),
-    intervention_mint = case_when(
-      str_to_lower(as.character(DE07)) == "ja" ~ TRUE,
-      str_to_lower(as.character(DE07)) == "nein" ~ FALSE
-    ),
-    intervention_only = coalesce(intervention_sprache, FALSE) | coalesce(intervention_mint, FALSE),
-    intervention_only = as.logical(intervention_only)
-  )
-data_post <- data_post[, c("code", setdiff(names(data_post), "code"))] #set code as first column
-# View(data_post[(is.na(data_post$code) | data_post$code == ""), ])
-data_post <- data_post[!(is.na(data_post$code) | data_post$code == ""), ] # remove empty/na codes (=8) -> 1 hat schon mint besucht, 2 stimmen nicht Datenschutz zu
+data_raw <- data_raw[, c("code", setdiff(names(data_raw), "code"))] #set code as first column
+# View(data_raw[(is.na(data_raw$code) | data_raw$code == ""), ])
+data_raw <- data_raw[!(is.na(data_raw$code) | data_raw$code == ""), ] # remove empty/na codes (=27)
 
 # remove non basic types to make it mergeable
-# Convert everything to character, then use type.convert to infer proper base types
-clean_df <- function(df) {
-  df[] <- lapply(df, function(col) {
-    if (!is.atomic(col)) col <- as.character(col)
-    col <- as.character(col)  # force avector etc. to become characters
-    type.convert(col, as.is = TRUE)
-  })
-  return(df)
-}
-data_pre_clean <- clean_df(data_pre)
-data_post_clean <- clean_df(data_post)
-
-# merge pre und post dfs
-#data <- dplyr::bind_rows(data_pre, data_post)
-data <- bind_rows(data_pre_clean, data_post_clean)
-
-# CT-Score aus CT28_01 übernehmen (-1/-9 als NA) und als CT_total_mean setzen
-data <- data %>%
-  mutate(
-    CT28_01 = suppressWarnings(as.numeric(CT28_01)),
-    CT28_01 = ifelse(CT28_01 %in% c(-1, -9), NA, CT28_01),
-    CT_total_mean = CT28_01
-  )
+data_raw_clean <- clean_df(data_raw)
 
 # factorize some columns
-data$gender <- factor(data$gender)
-data$location <- factor(data$location)
+data_raw_clean$gender <- factor(data_raw_clean$gender)
+data_raw_clean$location <- factor(data_raw_clean$location)
+
+# merge pre und post dfs
+data <- data_raw_clean
 
 # create relevant columns group (sprache mint), time (pre, post) and intervention (control, mint, sprache)
 data <- data %>%
@@ -171,6 +118,7 @@ data <- data %>%
     time = factor(time, levels=c("pre","post"))
   )
 
+# create intervention with 3 factors: control, mint, sprache
 data <- data %>% mutate(
   intervention = factor(ifelse(intervention_only == F, "control",
   ifelse(group == "mint", "mint", "sprache")))
@@ -244,14 +192,8 @@ if (check_distances){
   # View(matches_distance_2)
 }
 
-# # create new columns with scale naming
-# data <- data %>%
-#   mutate(across(starts_with("TP01_"), identity, .names = "TPACK_TK_{str_sub(.col, -2)}")) %>%
-#   mutate(across(starts_with("TP02_"), identity, .names = "TPACK_TPK_{str_sub(.col, -2)}")) %>%
-#   mutate(across(starts_with("TP03_"), identity, .names = "TPACK_TCK_{str_sub(.col, -2)}")) %>%
-#   mutate(across(starts_with("TP04_"), identity, .names = "TPACK_TPACK_{str_sub(.col, -2)}")) %>%
-#   mutate(across(starts_with("TP05_"), identity, .names = "TPACK_Ethic_{str_sub(.col, -2)}"))
-
+# save data
+save(data, file = "data/data.Rdata")
 ```
 
 ```{r Demographics}
@@ -269,7 +211,7 @@ preprocess_data <- function(data) {
 # only get data from pretest for demographic data to see registered
 data_pretest <- data %>% 
   filter(time == "pre")
-nrow(data_pretest)
+nrow(data_pretest) # amount of registered participants 145
 
 # only take samples with pre and post test data into account, singlecodes
 data_dem_all <- data %>%
@@ -277,7 +219,7 @@ data_dem_all <- data %>%
   filter(all(c("pre", "post") %in% time)) %>%
   filter(time == "post") %>%
   ungroup()
-nrow(data_dem_all)
+nrow(data_dem_all) # 76 participants with pre and post test
 
 # Create the formula
 demographics_formula <- intervention ~  location + age  + gender + semester + isp + studies + subject1 + subject2
@@ -287,44 +229,6 @@ demographics <- tableby(demographics_formula, data = data_dem_all)
 summary(demographics) %>%
   as.data.frame() %>%
   knitr::kable(caption = "Demographic Summary")
-
-# ---------
-
-# # 1. Sprache
-# data_sprache <- data_pretest %>%
-#   filter(group == "sprache") %>%
-#   preprocess_data()
-
-# demographics_sprache <- tableby(demographics_formula, data = data_sprache)
-
-# # 2. MINT Intervention
-# data_mint_intervention <- data_pretest %>%
-#   filter(group == "mint", intervention_only == TRUE) %>%
-#   preprocess_data()
-
-# demographics_mint_intervention <- tableby(demographics_formula, data = data_mint_intervention)
-
-# # 3. MINT Kontrollgruppe
-# data_mint_control <- data_pretest %>%
-#   filter(group == "mint", intervention_only == FALSE) %>%
-#   preprocess_data()
-
-# demographics_mint_control <- tableby(demographics_formula, data = data_mint_control)
-
-# # Ausgabe als Tabellen
-# summary(demographics_sprache) %>%
-#   as.data.frame() %>%
-#   knitr::kable(caption = "Demographic Summary: Sprache-Gruppe")
-
-# summary(demographics_mint_intervention) %>%
-#   as.data.frame() %>%
-#   knitr::kable(caption = "Demographic Summary: MINT Intervention")
-
-# summary(demographics_mint_control) %>%
-#   as.data.frame() %>%
-#   knitr::kable(caption = "Demographic Summary: MINT Kontrollgruppe")
-
-# TODO: only n's of both timepoints
 
 ```
 
@@ -337,8 +241,8 @@ list_items_i_tpack <- list(
   "TK" = grep("^TP01_", names(data), value=T),
   "TPK" = grep("^TP02_", names(data), value=T),
   "TCK" = grep("^TP03_", names(data), value=T),
-  "TPACK_appl" = grep("^TP04_(01|02|03|09|10|11|12|13|14)$", names(data), value=T), # Sub-Subskala 1: Anwendung
-  "TPACK_intrg" = grep("^TP04_(04|05|06|07|08|15)$", names(data), value=T), # Sub-Subskala 2: Integration
+  "TPACK_know" = grep("^TP04_(04|05|06|07|08|15)$", names(data), value=T), # Sub-Subskala 1: Wissen ("ich weiß, wie ...")
+  "TPACK_comp" = grep("^TP04_(01|02|03|09|10|11|12|13|14)$", names(data), value=T), # Sub-Subskala 2: Kompetenzen ("ich kann ...")
   "TPACK_genai" = grep("^TP04_(09|10|11|13|14)$", names(data), value=T), # Sub-Subskala 3: GenAI Items
   "Ethics" = grep("^TP05_0[1-6]$", names(data), value=T) #im pretest nur items 1-6 vorhanden 7,8 kamen im post dazu
 )
@@ -362,19 +266,23 @@ list_items_pu <- list(
 # sum(data_subset3 < 0, na.rm = TRUE)
 
 ## AI Literacy
-# TODO: do we want to split the results for each subscale?
 # data <- data %>% mutate(AILIT = AI35_02) # rename to sumscore
+list_items_ailit_wolke <- list(
+  "ailit_wolke" = grep("^(AI02|AI05|AI06|AI10|AI13|AI14|AI15|AI17_0[1-5]|AI18|AI20|AI21|AI23|AI24|AI25|AI27|AI28|AI29|)", names(data), value=T), # items we think students learn in the WoLKE seminar
+  "ailit_short" = grep("^(AI01|AI04|AI09|AI015|AI17_0[1-5]|AI19|AI21|AI25|AI27|AI29)$", names(data), value=T) # short version of the AILIT
+)
 
 # create new columns with the means of the lists
 data <- data %>%
   mutate(
-    AILIT = AI35_02,
+    AILIT = AI35_02, # default sumscore
+    AILITWoLKE     = rowMeans(select(., all_of(list_items_ailit_wolke$ailit_wolke)), na.rm = TRUE),
+    AILITShort     = rowMeans(select(., all_of(list_items_ailit_wolke$ailit_short)), na.rm = TRUE),
     TK     = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
     TPK    = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
     TCK    = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
-    TPACKappl  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_appl)), na.rm = TRUE),
-    TPACKintrg  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_intrg)), na.rm = TRUE),
-    TPACKintrg  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_intrg)), na.rm = TRUE),
+    TPACKknow  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_know)), na.rm = TRUE),
+    TPACKcomp  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_comp)), na.rm = TRUE),
     TPACKgenai  = rowMeans(select(., all_of(list_items_i_tpack$TPACK_genai)), na.rm = TRUE),
     Ethics = rowMeans(select(., all_of(list_items_i_tpack$Ethics)), na.rm = TRUE),
     PU     = rowMeans(select(., all_of(list_items_pu$Pu)), na.rm = TRUE),
@@ -384,29 +292,7 @@ data <- data %>%
 
 ```
 
-```{r lmer-Sprache}
-
-#### SPRACHE ####
-# nur daten berücksichtigen die pre und post test haben
-data_sprache <- data %>%
-  filter(group == "sprache") %>%
-  group_by(code) %>%
-  filter(all(c("pre", "post") %in% time)) %>%
-  ungroup()
-
-## define variables
-random_terms_lmer <- c("(1 | code)")
-# groups <- c("intervention") 
-outcomes <- c("AILIT", "TK", "TPK", "TCK", "TPACKappl", "TPACKintrg", "TPACKgenai", "Ethics", "PU")
-time <- "time"
-controls <- c("age", "gender")
-
-# groups set as NA
-lmers_prepost <-
-  lapply(outcomes, fit_lmer, NULL, time, controls, random_terms_lmer, NULL, data= data_sprache)
-
-modelsummary_models(lmers_prepost)
-```
+## Analysis
 
 Im folgenden verwenden wir drei Kontraste: (0) Intercept = Gesamtdurchschnitt aller Gruppen, (1) Exp-Ø (MINT+Sprache)/2 vs. Control, (2) Sprache vs. MINT. Mit der Zeit-Interaktion testen wir, ob sich diese Unterschiede über die Zeit unterschiedlich entwickeln (Difference-in-Differences: Exp-Ø vs. Control sowie Sprache vs. MINT).
 ``` {r lmer MINT vs Sprache vs Kontrollgruppe}
@@ -443,17 +329,17 @@ modelsummary_models(lmers_prepost_all)
 
 
 # ---------- klappt nich lol
-data_sg <- data %>%
-  group_by(code) %>%
-  filter(all(c("pre", "post") %in% time)) %>%
-  filter(location=="PH Schwäbisch Gmünd") %>%
-  ungroup()
-controls <- c("age", "gender")
+# data_sg <- data %>%
+#   group_by(code) %>%
+#   filter(all(c("pre", "post") %in% time)) %>%
+#   filter(location=="PH Schwäbisch Gmünd") %>%
+#   ungroup()
+# controls <- c("age", "gender")
 
-lmers_prepost_sg <-
-  lapply(outcomes, lmer, NULL, time, controls, random_terms_lmer, NULL, data = data_sg)
+# lmers_prepost_sg <-
+#   lapply(outcomes, lmer, NULL, time, controls, random_terms_lmer, NULL, data = data_sg)
 
-modelsummary_models(lmers_prepost_sg)
+# modelsummary_models(lmers_prepost_sg)
 
 
 
@@ -462,116 +348,26 @@ modelsummary_models(lmers_prepost_sg)
 # emmeans(lmers_prepost_all[[1]], ~ intervention*time|location, lmer.df = "satterthwaite") %>% contrast(interaction = "pairwise", adjust="none")
 ```
 
-``` {r old code}
+```{r lmer-Sprache}
 
-# Pre/Post-Effekt auf CT
-model_ct_sprache <- lmer(
-  CT_total_mean ~ time + age + gender + (1 | code),
-  data = data_sprache
-)
-summary(model_ct_sprache)
-
-# Deskriptiv: CT nach Zeit (Sprache)
-ct_desc_sprache <- data_sprache %>%
-  group_by(time) %>%
-  summarise(
-    n    = sum(!is.na(CT_total_mean)),
-    mean = mean(CT_total_mean, na.rm = TRUE),
-    sd   = sd(CT_total_mean,   na.rm = TRUE),
-    .groups = "drop"
-  )
-knitr::kable(ct_desc_sprache, caption = "CT (Sprache): Deskriptive Statistiken Pre/Post")
-
-
-#### MINT - nur SG ####
-# 1. MINT-Daten mit Pre- und Posttest
-data_mint <- data %>%
-  filter(group == "mint") %>%
-  group_by(code) %>%
-  filter(all(c("pre", "post") %in% time)) %>%
-  ungroup()
-# 2. Subset nur für PH Schwäbisch Gmünd
-data_mint_sg <- data_mint %>%
-  filter(location == "PH Schwäbisch Gmünd")
-
-# 3. AI lit Sumscore mit Intervention vs. Kontrollgruppe, nur für Schwäbisch Gmünd
-model_ailit_contr_mint_sg <- lmer(AILIT ~ time * intervention + age + gender + (1 | code), data = data_mint_sg)
-summary(model_ailit_contr_mint_sg)
-
-# TPACK-Modelle nur für Schwäbisch Gmünd: Zeit (pre vs. post)
-model_tpack_mint_sg <- lmer(TPACK_total ~ time + age + gender + (1 | code), data = data_mint_sg)
-summary(model_tpack_mint_sg)
-
-# Interaktion: Zeit * Intervention
-model_tpack_int_contr_mint_sg <- lmer(TPACK_total ~ time * intervention + age + gender + (1 | code), data = data_mint_sg)
-# summary(model_tpack_contr_mint_sg) TODO: fix Error in h(simpleError(msg, call)) :  error in evaluating the argument 'object' in selecting a method for function 'summary': object 'model_tpack_contr_mint_sg' not found
-
-
-#### MINT ####
-# data_mint <- data %>% filter(group == "mint")
-data_mint <- data %>%
-  filter(group == "mint") %>%
+#### SPRACHE ####
+# nur daten berücksichtigen die pre und post test haben
+data_sprache <- data %>%
+  filter(group == "sprache") %>%
   group_by(code) %>%
   filter(all(c("pre", "post") %in% time)) %>%
   ungroup()
 
-# AI Lit Sumscore
-model_ailit_mint <- lmer(AILIT ~ time + age + gender + (1 | code), data = data_mint)
-summary(model_ailit_mint) # sign.
-model_ailit_loc_mint <- lmer(AILIT ~ time * location + age + gender + (1 | code), data = data_mint)
-summary(model_ailit_loc_mint) # no sign. diff between phsg und phlb
-model_ailit_contr_mint <- lmer(AILIT ~ time * intervention + age + gender + (1 | code), data = data_mint)
-summary(model_ailit_contr_mint) # höherer posttest score als zum pretest, aber nicht verglichen der gruppen über zeit: intervention ist nicht unbedingt der grund warum die scores höher sind
+## define variables
+random_terms_lmer <- c("(1 | code)")
+# groups <- c("intervention") 
+outcomes <- c("AILIT", "TK", "TPK", "TCK", "TPACKappl", "TPACKintrg", "TPACKgenai", "Ethics", "PU")
+time <- "time"
+controls <- c("age", "gender")
 
-# Linear mixed effects model: TPACK_total ~ time (fixed effect), with random intercept per person (code)
-model_tpack_mint <- lmer(TPACK_total ~ time + age + gender + (1 | code), data = data_mint)
-summary(model_tpack_mint) # sign.
-model_tpack_loc_mint <- lmer(TPACK_total ~ time * location + age + gender + (1 | code), data = data_mint)
-summary(model_tpack_loc_mint) # sign. PH Schwäbisch Gmünd shows a smaller improvement -> maybe cause of control?
-model_tpack_contr_mint <- lmer(TPACK_total ~ time * intervention + age + gender + (1 | code), data = data_mint)
-summary(model_tpack_contr_mint) # control group did not improve, intervention improved sign. from pre to post (see interaction)
+# groups set as NA
+lmers_prepost <-
+  lapply(outcomes, fit_lmer, NULL, time, controls, random_terms_lmer, NULL, data= data_sprache)
 
-# Perceived Usefulness
-model_pu_mint <- lmer(PU ~ time + age + gender + (1 | code), data = data_mint)
-summary(model_pu_mint) # no sign.
-
-
-#### CT (Computational Thinking) – MINT ####
-
-# Gesamt MINT: Haupteffekt Zeit
-model_ct_time_mint <- lmer(
-  CT_total_mean ~ time + age + gender + (1 | code),
-  data = data_mint
-)
-summary(model_ct_time_mint)
-
-# Gesamt MINT: Zeit * Intervention
-model_ct_timeXint_mint <- lmer(
-  CT_total_mean ~ time * intervention + age + gender + (1 | code),
-  data = data_mint
-)
-summary(model_ct_timeXint_mint)
-
-# Gesamt MINT: Zeit * Location
-model_ct_timeXloc_mint <- lmer(
-  CT_total_mean ~ time * location + age + gender + (1 | code),
-  data = data_mint
-)
-summary(model_ct_timeXloc_mint)
-
-# Nur PH Schwäbisch Gmünd
-data_mint_sg <- data_mint %>% filter(location == "PH Schwäbisch Gmünd")
-
-model_ct_time_mint_sg <- lmer(
-  CT_total_mean ~ time + age + gender + (1 | code),
-  data = data_mint_sg
-)
-summary(model_ct_time_mint_sg)
-
-model_ct_timeXint_mint_sg <- lmer(
-  CT_total_mean ~ time * intervention + age + gender + (1 | code),
-  data = data_mint_sg
-)
-summary(model_ct_timeXint_mint_sg)
-
+modelsummary_models(lmers_prepost)
 ```

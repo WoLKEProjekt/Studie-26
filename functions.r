@@ -108,3 +108,13 @@ modelsummary_models <- function(
     return(ms)
   }
 }
+
+# Convert everything to character, then use type.convert to infer proper base types
+clean_df <- function(df) {
+  df[] <- lapply(df, function(col) {
+    if (!is.atomic(col)) col <- as.character(col)
+    col <- as.character(col)  # force avector etc. to become characters
+    type.convert(col, as.is = TRUE)
+  })
+  return(df)
+}

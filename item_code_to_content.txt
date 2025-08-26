@@ -20,37 +20,37 @@ DE24        1. Fach
 DE25        2. Fach
 DE26        1. Erweiterungsfach
 DE27        2. Erweiterungsfach
-AI01        AI Literacy
-AI02
-AI03
-AI04
+AI01        AI Literacy --s(hort)
+AI02        
+AI03 
+AI04        --s
 AI05
 AI06
 AI07
 AI08
-AI09
+AI09        --s
 AI10
 AI11
 AI13
 AI14
-AI15
+AI15        --s
 AI16
-AI17_01
+AI17_01     --s
 AI17_02
 AI17_03
 AI17_04
 AI17_05
 AI18
-AI19
+AI19        --s
 AI20
-AI21
+AI21        --s
 AI22
 AI23
 AI24
-AI25
-AI27
+AI25        --s
+AI27        --s
 AI28
-AI29
+AI29        --s
 AI30
 AI35_02   AI Lit sumscore
 AI36_01
