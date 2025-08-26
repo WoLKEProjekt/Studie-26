@@ -105,12 +105,11 @@ data_raw <- data_raw[, c("code", setdiff(names(data_raw), "code"))] #set code as
 # View(data_raw[(is.na(data_raw$code) | data_raw$code == ""), ])
 data_raw <- data_raw[!(is.na(data_raw$code) | data_raw$code == ""), ] # remove empty/na codes (=27)
 
-# remove non basic types to make it mergeable
-data_raw_clean <- clean_df(data_raw)
+data_raw_clean <- data_raw
 
 # factorize some columns
-data_raw_clean$gender <- factor(data_raw_clean$gender)
-data_raw_clean$location <- factor(data_raw_clean$location)
+data_raw_clean$gender <- factor(data_raw_clean$gender) # TODO: umbenennen und reihenfolge der levels angeben
+data_raw_clean$location <- factor(data_raw_clean$location) # TODO: umbenennen und reihenfolge der levels angeben
 
 # merge pre und post dfs
 data <- data_raw_clean
@@ -126,7 +125,7 @@ data <- data %>%
       str_detect(QUESTNNR, "post") ~ "post",
       TRUE ~ "pre"
     ),
-    group = factor(group),
+    group = factor(group), # TODO: mint=stem sprache=language
     time = factor(time, levels = c("pre", "post"))
   )
 
@@ -136,22 +135,23 @@ data <- data %>%
     intervention = factor(ifelse(
       intervention_only == F,
       "control",
-      ifelse(group == "mint", "mint", "sprache")
+      ifelse(group == "mint", "mint", "sprache") # TODO: mint=stem sprache=language
     ))
   )
 
 ### EXCLUSIONS
-e1 <- nrow(data[data$FINISHED == "FALSE", ]) # not FINISHED
+e1 <- nrow(data[data$FINISHED == F, ]) # not FINISHED
 e1
-data <- data[data$FINISHED == "TRUE", ]
+data <- data[data$FINISHED == T, ] # only keep completed questionnaires
 
 e2 <- nrow(data[data$code == "höel07", ])
 e2
 data <- data[data$code != "höel07", ] #example code
 
 # check for multiple entries and completed questionnaires
+# table(table(data$code))
 # view a specific code; obsu02 stfr08 (both multiple finished questionnaire, rowindex 1811)
-data <- data[!rownames(data) %in% c("1811", "1814"), ]
+data <- data[!rownames(data) %in% c("1811", "1814"), ] # Wie haben wir uns entschieden? am besten erster eintrag nehmen
 # View(data[data$code == "obsu02", ])
 
 # Code corrections from levenshtein checks
@@ -165,60 +165,58 @@ data$code[data$code == "meli06"] <- "meli63"
 data$code[data$code == "waol30"] <- "spol30"
 
 # check code distances
-check_distances <- F
-if (check_distances) {
-  # finding typos in code
-  # get and save single instances of code
-  single_codes <- data %>%
-    count(code) %>%
-    filter(n == 1) %>%
-    pull(code)
-  # Get only the rows where code is in single_codes
-  data_single <- data %>%
-    filter(code %in% single_codes)
-
-  # Now split the codes based on group
-  single_codes_pre <- data_single %>%
-    filter(time == "pre") %>%
-    pull(code)
-
-  single_codes_post <- data_single %>%
-    filter(time == "post") %>%
-    pull(code)
-
-  # 1. Compute the distance matrix
-  dist_matrix <- stringdistmatrix(
-    a = single_codes_pre,
-    b = single_codes_post,
-    method = "lv"
-  )
-
-  # 2. Convert to data frame with row and column names
-  dist_df <- as.data.frame(dist_matrix)
-  rownames(dist_df) <- single_codes_pre
-  colnames(dist_df) <- single_codes_post
-
-  # 3. Extract the index positions where distance == 2
-  matches_2 <- which(dist_df == 2, arr.ind = TRUE)
-
-  # 4. Create a data frame of those matches
-  matches_distance_2 <- data.frame(
-    pre_code = rownames(dist_df)[matches_2[, "row"]],
-    post_code = colnames(dist_df)[matches_2[, "col"]],
-    distance = 2
-  )
-
-  # 5. View result
-  # View(matches_distance_2)
+check_dist <- F
+if (check_dist) {
+  check_distances(data, 2)
 }
 
+data_all <- data
 # save data
+save(data_all, file = "data/data_all.Rdata")
+
+# only keep subjects with both data in pre and post test for analysis
+data <- data %>%
+  group_by(code) %>%
+  filter(all(c("pre", "post") %in% time)) %>%
+  ungroup()
+
+# investigate: df with subjects having unclear studies, check semestercount to see if BA or MA
+temp_df <- data %>%
+  filter(!is.na(DE16_16)) %>%
+  select(code, DE16_16, semester, intervention)
+
+# append (Master) to those with semestercount > 6 according to tmp_df
+data$DE16_16[data$code %in% temp_df$code] <-
+  paste0(data$DE16_16[data$code %in% temp_df$code], " (Master)")
+
+remove(temp_df)
+
+# create new variable subject with levels bachelor and master
+data <- data %>%
+  mutate(
+    students = case_when(
+      str_detect(tolower(studies), "master") ~ "master",
+      str_detect(tolower(studies), "bachelor") ~ "bachelor",
+      str_detect(tolower(studies), "nachstudium") ~ "master",
+      str_detect(tolower(studies), "sonstiges") &
+        str_detect(tolower(DE16_16), "master") ~
+        "master",
+      str_detect(tolower(studies), "sonstiges") &
+        str_detect(tolower(DE16_16), "bachelor") ~
+        "bachelor",
+      # TRUE ~ "master" # hier gibt es eine person, die nachstudium angegeben hat, aber mit semestercount 6/8 setzen wir ihn auf master
+      TRUE ~ NA
+    ),
+    students = factor(students, levels = c("bachelor", "master"))
+  )
+
 save(data, file = "data/data.Rdata")
+
 ```
 
 ```{r Demographics}
 # Generate the tableby summary
-preprocess_data <- function(data) {
+preprocess_data <- function(data_all) {
   data %>%
     droplevels() %>%
     mutate(
@@ -229,12 +227,12 @@ preprocess_data <- function(data) {
 }
 
 # only get data from pretest for demographic data to see registered
-data_pretest <- data %>%
+data_pretest <- data_all %>%
   filter(time == "pre")
 nrow(data_pretest) # amount of registered participants 145
 
 # only take samples with pre and post test data into account, singlecodes
-data_dem_all <- data %>%
+data_dem_all <- data_all %>%
   group_by(code) %>%
   filter(all(c("pre", "post") %in% time)) %>%
   filter(time == "post") %>%
@@ -364,11 +362,6 @@ data <- data %>%
 
 Im folgenden verwenden wir drei Kontraste: (0) Intercept = Gesamtdurchschnitt aller Gruppen, (1) Exp-Ø (MINT+Sprache)/2 vs. Control, (2) Sprache vs. MINT. Mit der Zeit-Interaktion testen wir, ob sich diese Unterschiede über die Zeit unterschiedlich entwickeln (Difference-in-Differences: Exp-Ø vs. Control sowie Sprache vs. MINT).
 ``` {r lmer MINT vs Sprache vs Kontrollgruppe}
-data_all <- data %>%
-  group_by(code) %>%
-  filter(all(c("pre", "post") %in% time)) %>%
-  ungroup()
-
 ## define contrast Control vs Exp1+Exp2 - vermutlich bessere version, da die Estimates "stimmen"
 mat <- cbind(
   c(1 / 3, 1 / 3, 1 / 3), # Durchschnitt aller 3 Gruppen
@@ -392,8 +385,8 @@ outcomes <- c(
   "TK",
   "TPK",
   "TCK",
-  "TPACKappl",
-  "TPACKintrg",
+  "TPACKknow",
+  "TPACKcomp",
   "TPACKgenai",
   "Ethics",
   "PU"
@@ -411,7 +404,7 @@ lmers_prepost_all <-
     controls,
     random_terms_lmer,
     NULL,
-    data = data_all
+    data = data
   )
 
 modelsummary_models(lmers_prepost_all)

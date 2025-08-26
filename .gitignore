@@ -13,3 +13,5 @@ data/code_distances.txt
 data/data.Rdata
 
 WoLKE-Pilot-2025_cache/
+
+data/data_all.Rdata

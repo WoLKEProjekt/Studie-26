@@ -112,9 +112,57 @@ modelsummary_models <- function(
 # Convert everything to character, then use type.convert to infer proper base types
 clean_df <- function(df) {
   df[] <- lapply(df, function(col) {
-    if (!is.atomic(col)) col <- as.character(col)
-    col <- as.character(col)  # force avector etc. to become characters
+    if (!is.atomic(col)) {
+      col <- as.character(col)
+    }
+    col <- as.character(col) # force avector etc. to become characters
     type.convert(col, as.is = TRUE)
   })
   return(df)
+}
+
+check_distances <- function(data, dist = 2) {
+  # finding typos in code
+  # get and save single instances of code
+  single_codes <- data %>%
+    count(code) %>%
+    filter(n == 1) %>%
+    pull(code)
+  # Get only the rows where code is in single_codes
+  data_single <- data %>%
+    filter(code %in% single_codes)
+
+  # Now split the codes based on group
+  single_codes_pre <- data_single %>%
+    filter(time == "pre") %>%
+    pull(code)
+
+  single_codes_post <- data_single %>%
+    filter(time == "post") %>%
+    pull(code)
+
+  # 1. Compute the distance matrix
+  dist_matrix <- stringdistmatrix(
+    a = single_codes_pre,
+    b = single_codes_post,
+    method = "lv"
+  )
+
+  # 2. Convert to data frame with row and column names
+  dist_df <- as.data.frame(dist_matrix)
+  rownames(dist_df) <- single_codes_pre
+  colnames(dist_df) <- single_codes_post
+
+  # 3. Extract the index positions where distance == 2
+  matches_x <- which(dist_df == dist, arr.ind = TRUE)
+
+  # 4. Create a data frame of those matches
+  matches_distance_x <- data.frame(
+    pre_code = rownames(dist_df)[matches_x[, "row"]],
+    post_code = colnames(dist_df)[matches_x[, "col"]],
+    distance = dist
+  )
+
+  # 5. View result
+  print(matches_distance_x)
 }
