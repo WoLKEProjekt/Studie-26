@@ -1,3 +1,87 @@
+plot_outcome <- function(
+  data,
+  groups = "intervention",
+  ylab = "Rating",
+  scales_facet = "free"
+) {
+  # set color scale/palette and plot theme
+  wolke_color_scale <- scale_colour_manual(values = rev(pal_jco("default")(3)))
+  wolke_theme <-
+    theme_apa(
+      legend.pos = "bottomright",
+      legend.use.title = T,
+      facet.title.size = 12,
+      x.font.size = 18,
+      y.font.size = 18,
+      legend.font.size = 12
+    )
+  #wolke_theme <- theme_bw(base_size = 18)
+
+  data %>%
+    ggplot(aes(
+      x = time,
+      y = score,
+      color = get(groups),
+      group = get(groups)
+    )) +
+    stat_summary(fun.data = mean_se, aes(shape = get(groups))) +
+    stat_summary(
+      fun.data = mean_se,
+      geom = "line",
+      aes(linetype = get(groups))
+    ) +
+    # add error bars
+    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+    facet_wrap(~outcome, scales = scales_facet, ncol = 2) +
+    labs(x = "Time", y = ylab) +
+    wolke_color_scale +
+    wolke_theme
+}
+
+plot_outcome_over_time <- function(
+  data = NULL,
+  outcome = "TPACK",
+  groups = "intervention",
+  title = "title",
+  subtitle = "subtitle",
+  ylab = "Rating"
+) {
+  base_size = 18
+  p <- ggplot(
+    data %>% filter(!is.na(get(outcome))),
+    aes(time, get(outcome), group = get(groups))
+  ) +
+    stat_summary(fun.data = mean_se, geom = "line", aes(linetype = group)) +
+    stat_summary(fun.data = mean_se, geom = "errorbar", width = .1) +
+    stat_summary(
+      fun.data = mean_se,
+      aes(shape = group, fill = group),
+      size = 1
+    ) +
+    scale_shape_manual(values = c(21, 21)) +
+    scale_fill_manual(values = c("black", "white")) +
+    ylab(ylab) +
+    xlab("Time") +
+    labs(shape = "Group", fill = "Group", linetype = "Group") +
+    theme_bw(base_size = base_size) +
+    scale_linetype_manual(values = c("solid", "longdash")) +
+    theme(
+      legend.position = "none",
+      legend.key.width = unit(5, "line"),
+      legend.margin = margin(c(5, 5, 5, 5)),
+      legend.background = element_rect(colour = "black"),
+      plot.title = element_text(
+        hjust = .5,
+        face = "bold",
+        size = base_size - 1
+      ),
+      plot.subtitle = element_text(hjust = .5, size = base_size - 3)
+    ) +
+    ggtitle(title, subtitle)
+
+  return(p)
+}
+
 fit_lmer <- function(
   response_var,
   groups = NULL,

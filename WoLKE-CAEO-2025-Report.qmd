@@ -1,0 +1,120 @@
+---
+title: "WoLKE CAEO 2025 Report"
+author: "Heiko Holz"
+date: "`r Sys.Date()`"
+lang: de
+page-layout: full
+document-css: false
+link-citations: true
+number-sections: true
+toc: true
+csl: https://www.zotero.org/styles/apa
+bibliography: library.bib
+editor: source
+execute:
+  cache: true
+format:
+  html:
+    standalone: true
+    embed-resources: true
+    section-divs: true
+    html-math-method: mathjax
+    wrap: none
+    default-image-extension: png
+    date-format: long
+---
+
+This document contains the analysis scripts and report for the manuscript "A Course on AI for Pre-Service STEM and Language Teachers: A Quasi-Experimental Evaluation of Learning Outcomes Using Intelligent-TPACK and AI Literacy Instruments ". The R scripts and data are hosted at <OSF>.
+
+```{r load-libraries-and-functions}
+#| output: false
+library(this.path)
+library(dplyr) #e.g. for select
+library(tidyr) # for reshaping data
+library(stringdist) #levenshtein
+library(stringr) # for reshaping data
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(modelsummary)
+library(kableExtra)
+library(arsenal)
+library(forcats)
+library(ggplot2)
+library(ggsci) # color palettes
+library(jtools) # theme_apa etc.
+source(file = "functions.r") # all outsourced funtions
+```
+
+```{r load-data}
+# load "env-analysis.RData" which contains all data needed for the analysis
+load(file = "data/env-analysis.RData")
+```
+
+# Methods
+
+## Participants
+```{r table-participants, result = "asis"}
+#| label: tbl-participants
+#| tbl-cap: "Demographic Data of the Three Experimental Groups"
+# render as table
+format <- ifelse(knitr::is_html_output(), "markdown", ifelse(knitr::is_latex_output(), "latex", "markdown"))
+output_format <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+
+var_names <- list(
+  gender = "Gender",
+  age = "Age",
+  semester = "Semester Number",
+  student = "Graduate Level",
+  isp = "Completed Integrated Semester Internship",
+  subject1 = "Subject 1",
+  subject2 = "Subject 2",
+  studies = "Study Program",
+  location = "University"
+)
+
+kable(
+  summary(tableby(intervention ~
+  location + age + gender + semester + isp + studies + subject1 + subject2, 
+                            data_dem_all %>% droplevels(), 
+                            cat.test ="chisq", chisq.correct=T,
+                            control = tableby.control(test=T, total=T, digits=2)), labelTranslations = var_names, pfootnote = T, text=F), 
+  escape = T,
+  format = format, booktabs = T) %>% 
+  add_footnote(c("ANOVA", "Pearson's Chi-squared test with Yates' continuity correction"), notation="number")
+```
+## Materials
+
+## Analysis
+We analyzed the interventions' efficacy in a multilevel analysis approach. To contrast the differences of students' change in the respective outcome measure over time, we implemented a linear mixed-effects regression model for each outcome measure, considering our $3$ factorial design. To account for the panel structure, that is, two test sessions, in the data, we used the random effects (RE) estimation method to estimate treatment effects, following CITATION.
+
+:::{.callout-note}
+Ist unser Design 3- oder 2-faktoriell?
+:::
+
+We implemented the two-level models with the students at level 1 (individual level) and the University at level 2 (class level). We addressed the clustering of time points within students by including random intercepts for students. The clustering of students within universities was addressed by including a dummy variable for the University. 
+
+To contrast the differences in change over time between the treatment groups (i.e., estimated treatment effect), we included the time-by-treatment interaction in the models. For this, we used a dummy-coded *treatment* variable using reversed Helmert contrasts to contrast the differences between (i) the *control* group and the *intervention* groups and (ii) between the two intervention groups. We set the *control* group as the reference group.
+
+Finally, we included variables as a covariate if they met the criteria for baseline equivalence in randomized controlled trials by the What Works Clearinghouse [@WWC2022]. That is, we included the variables as covariates if the difference between the groups was statistical significant, or if it exceeded $d>.05$.
+We tested for group differences concerning the following variables at baseline (pretest): age, semester, gender, study level (Bachelor vs. Master). We found for all variables either statistically significant differences or differences larger than $d=.05$, see [@tbl-participants]. That is, we included the following covariates in the models: XYZ.
+
+That is, the final model for each outcome measure contained time, treatment, XYZ, University and the interaction of time and treatment as fixed effects and a random intercept for students, and was specified as follows:
+`lmer(outcome ~ time * treatment + age + semester + universty + (1|student))`.
+
+### Statistical Software
+We performed the statistical analyses in *R* [@R2024] using the following packages:
+*dplyr* [wickham2023:dplyr], *tidyr* [@wickham2024], and *gtools* [@warnes2023] for data wrangling;
+*arsenal* [@heinzen2021], *vtable* [@huntington2023], and *kableExtra* [@zhu2024] for creating tables; *ggplot2* [@wickham2016], *ggsci* [@xiao2024] and *jtools* [@long2022] for plotting; and *lme4* [@bates2015] and *lmerTest* [@kuznetsova2017] for linear mixed-effects regression analyses.
+
+We used the *lme4* package [@bates2015] to fit linear mixed-effects models and the *broom.mixed* package [@bolker2024] to extract the results. Degrees of freedom and *p*-values were calculated using the *lmerTest* package [@kuznetsova2017] using Kenward-Roger's approximation for the denominator degrees of freedom. Pairwise comparisons between the treatment groups were computed using the *emmeans* package [@lenth2025].
+
+# Results
+We will report the *main* effects of the treatment groups (i.e., control vs. STEM and language seminar, control vs. STEM seminar, control vs. language seminar, and STEM vs. language seminar).
+
+## Descriptive Statistics
+Descriptive statistics of students' demographic characteristics and pre-test scores are presented in Table 1.
+
+## Linear Mixed-Effects Models
+
+# Discussion
