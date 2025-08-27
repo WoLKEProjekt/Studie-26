@@ -41,6 +41,8 @@ library(modelsummary)
 library(kableExtra)
 library(arsenal)
 library(forcats)
+library(psych)
+library(purrr)
 source(file = "functions.r") # all outsourced funtions
 ```
 
@@ -52,6 +54,8 @@ setwd(this.path::this.dir())
 ### Load Data
 # load csv -> df_pre
 source("./data/import_ki-lehramt.r")
+
+# View(df[tolower(df$DE13_01) == "stfr08", ]) #stfr08
 
 # extract items starting with TP (TPACK) or DE (Demographics)
 data_raw <- df %>%
@@ -108,9 +112,56 @@ data_raw <- data_raw[!(is.na(data_raw$code) | data_raw$code == ""), ] # remove e
 data_raw_clean <- clean_df(data_raw)
 # data_raw_clean <- data_raw
 
-# factorize some columns
-data_raw_clean$gender <- factor(data_raw_clean$gender) # TODO: umbenennen und reihenfolge der levels angeben
-data_raw_clean$location <- factor(data_raw_clean$location) # TODO: umbenennen und reihenfolge der levels angeben
+## factorize some columns
+# define new levels for gender:
+# levels(data_raw_clean$gender) <- c("diverse", "no answer", "male", "female")
+# change order of levels
+data_raw_clean$gender <- factor(
+  data_raw_clean$gender
+  # levels = c("female", "male", "diverse", "no answer")
+)
+
+# for location
+data_raw_clean$location <- factor(
+  data_raw_clean$location,
+  levels = c("PH Ludwigsburg", "PH Schwäbisch Gmünd")
+)
+
+# identify columns of interest
+cols_to_check <- grep(
+  "^(CT|TP|AI36|ED|RE)",
+  names(data_raw_clean),
+  value = TRUE
+)
+
+# reshape to long format and check for negatives
+negatives_df <- data_raw_clean %>%
+  select(code, all_of(cols_to_check)) %>% # keep ID/code and relevant columns
+  pivot_longer(
+    cols = all_of(cols_to_check),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  filter(value < 0)
+
+# list of codes where a negative was found
+codes_with_negatives <- unique(negatives_df$code)
+
+# count how many negatives per code
+counts_per_code <- negatives_df %>%
+  count(code, name = "n_negatives")
+
+# total number of negative instances
+total_negatives <- nrow(negatives_df)
+
+# outputs:
+# codes_with_negatives # vector of codes
+# counts_per_code # table of how many negatives per code
+# total_negatives # overall number of negative values
+
+# replace negatives with NA in the original dataframe
+data_raw_clean <- data_raw_clean %>%
+  mutate(across(all_of(cols_to_check), ~ ifelse(. < 0, NA, .)))
 
 # merge pre und post dfs
 data <- data_raw_clean
@@ -119,25 +170,28 @@ data <- data_raw_clean
 data <- data %>%
   mutate(
     group = case_when(
-      str_detect(QUESTNNR, "sprache") ~ "sprache",
-      str_detect(QUESTNNR, "mint") ~ "mint"
+      str_detect(QUESTNNR, "sprache") ~ "language",
+      str_detect(QUESTNNR, "mint") ~ "stem"
     ),
     time = case_when(
       str_detect(QUESTNNR, "post") ~ "post",
       TRUE ~ "pre"
     ),
-    group = factor(group), # TODO: mint=stem sprache=language
+    group = factor(group, levels = c("language", "stem")),
     time = factor(time, levels = c("pre", "post"))
   )
 
 # create intervention with 3 factors: control, mint, sprache
 data <- data %>%
   mutate(
-    intervention = factor(ifelse(
-      intervention_only == F,
-      "control",
-      ifelse(group == "mint", "mint", "sprache") # TODO: mint=stem sprache=language
-    ))
+    intervention = factor(
+      ifelse(
+        intervention_only == F,
+        "control",
+        ifelse(group == "stem", "stem", "language")
+      ),
+      levels = c("control", "stem", "language")
+    )
   )
 
 ### EXCLUSIONS
@@ -152,8 +206,11 @@ data <- data[data$code != "höel07", ] #example code
 # check for multiple entries and completed questionnaires
 # table(table(data$code))
 # view a specific code; obsu02 stfr08 (both multiple finished questionnaire, rowindex 1811)
-data <- data[!rownames(data) %in% c("1811", "1814"), ] # Wie haben wir uns entschieden? am besten erster eintrag nehmen
-# View(data[data$code == "obsu02", ])
+# rownames(data)[data$code == "stfr08"]
+data <- data[!rownames(data) %in% c("1811", "1814"), ] # TODO: Wie haben wir uns entschieden? am besten erster eintrag nehmen
+# View(data_raw[data_raw$code == "obsu02", ]) #stfr08
+
+## Corrections
 
 # Code corrections from levenshtein checks
 data$code[data$code == "mair10"] <- "moir10"
@@ -164,22 +221,6 @@ data$code[data$code == "mosy24"] <- "stsy24"
 data$code[data$code == "frco30"] <- "scco30"
 data$code[data$code == "meli06"] <- "meli63"
 data$code[data$code == "waol30"] <- "spol30"
-
-# check code distances
-check_dist <- F
-if (check_dist) {
-  check_distances(data, 2)
-}
-
-data_all <- data
-# save data
-save(data_all, file = "data/data_all.Rdata")
-
-# only keep subjects with both data in pre and post test for analysis
-data <- data %>%
-  group_by(code) %>%
-  filter(all(c("pre", "post") %in% time)) %>%
-  ungroup()
 
 # investigate: df with subjects having unclear studies, check semestercount to see if BA or MA
 temp_df <- data %>%
@@ -192,24 +233,122 @@ data$DE16_16[data$code %in% temp_df$code] <-
 
 remove(temp_df)
 
-# create new variable subject with levels bachelor and master
+# create new variable subject with levels bachelor and master depending on studies value
 data <- data %>%
   mutate(
     students = case_when(
       str_detect(tolower(studies), "master") ~ "master",
       str_detect(tolower(studies), "bachelor") ~ "bachelor",
-      str_detect(tolower(studies), "nachstudium") ~ "master",
+      str_detect(tolower(studies), "nachstudium") ~ "master", # hier gibt es eine person, die nachstudium angegeben hat, aber mit semestercount 6/8 setzen wir ihn auf master
       str_detect(tolower(studies), "sonstiges") &
         str_detect(tolower(DE16_16), "master") ~
         "master",
       str_detect(tolower(studies), "sonstiges") &
         str_detect(tolower(DE16_16), "bachelor") ~
         "bachelor",
-      # TRUE ~ "master" # hier gibt es eine person, die nachstudium angegeben hat, aber mit semestercount 6/8 setzen wir ihn auf master
       TRUE ~ NA
     ),
     students = factor(students, levels = c("bachelor", "master"))
   )
+
+# check code distances
+check_dist <- F
+if (check_dist) {
+  check_distances(data, 2)
+}
+
+# check demograph. differences pre to post
+dem_diff <- check_demo_vars(
+  data,
+  demo_vars = c("age", "semester", "gender", "students"),
+  id = "code",
+  show_only_diff = T
+)
+
+codes_age <- dem_diff %>%
+  filter(variable == "age") %>%
+  pull(code)
+# correct age in post to age in pre (to report one age and have same age for subj when calc models)
+for (cc in codes_age) {
+  # save pre value
+  pre_val <- data$age[data$code == cc & data$time == "pre"]
+
+  # write that in post value
+  data$age[data$code == cc & data$time == "post"] <- pre_val
+}
+
+codes_gender <- dem_diff %>%
+  filter(variable == "gender") %>%
+  pull(code)
+# correct gender in post to gender in pre
+for (cc in codes_gender) {
+  # save pre value
+  pre_val <- data$gender[data$code == cc & data$time == "pre"]
+
+  # write that in post value
+  data$gender[data$code == cc & data$time == "post"] <- pre_val
+}
+
+# look at data entries for codes kesü16, leel08, mail19, obpe30, osel08, rosa20, röma24, scna18, stfr08
+# codes_of_interest <- c(
+#   "rosa20"
+# )
+# df_subset <- data %>%
+#   filter(code %in% codes_of_interest) %>%
+#   select(
+#     code,
+#     subject1,
+#     subject2,
+#     students,
+#     studies,
+#     gender,
+#     age,
+#     location,
+#     semester,
+#     time,
+#     intervention,
+#     isp
+#   )
+# View(df_subset)
+
+# semester count correction (post to pre) after reviewing dem. data
+adjust_semester_to_pre <- c(
+  "rosa20",
+  "luil07",
+  "mije10",
+  "scco30",
+  "leel08",
+  "scna18",
+  "röma24",
+  "osel08"
+)
+for (cc in adjust_semester_to_pre) {
+  # save pre value
+  pre_val <- data$semester[data$code == cc & data$time == "pre"]
+
+  # write that in post value
+  data$semester[data$code == cc & data$time == "post"] <- pre_val
+}
+
+# semester count correction (pre to post) after reviewing dem. data
+adjust_semester_to_post <- c("kesü16", "stfr08", "obpe30", "mail19")
+for (cc in adjust_semester_to_post) {
+  # save pre value
+  pre_val <- data$semester[data$code == cc & data$time == "post"]
+
+  # write that in post value
+  data$semester[data$code == cc & data$time == "pre"] <- pre_val
+}
+
+data_all <- data
+# save data for demographics (no pre-post filtering)
+save(data_all, file = "data/data_all.Rdata")
+
+# only keep subjects with both data in pre and post test for analysis
+data <- data %>%
+  group_by(code) %>%
+  filter(all(c("pre", "post") %in% time)) %>%
+  ungroup()
 
 save(data, file = "data/data.Rdata")
 
@@ -305,31 +444,34 @@ list_items_pu <- list(
 
 ## AI Literacy
 # data <- data %>% mutate(AILIT = AI35_02) # rename to sumscore
-# list_items_ailit_wolke <- list(
-#   "ailit_wolke" = grep(
-#     "^(AI02|AI05|AI06|AI10|AI13|AI14|AI15|AI17_0[1-5]|AI18|AI20|AI21|AI23|AI24|AI25|AI27|AI28|AI29)",
-#     names(data),
-#     value = T
-#   ), # items we think students learn in the WoLKE seminar
-#   "ailit_short" = grep(
-#     "^(AI01|AI04|AI09|AI015|AI17_0[1-5]|AI19|AI21|AI25|AI27|AI29)$",
-#     names(data),
-#     value = T
-#   ) # short version of the AILIT
-# )
+list_items_ailit_wolke <- list(
+  "ailit_wolke" = grep(
+    #(AI05|AI06|AI14|AI15|AI17_0[1-5]|AI21|AI23|AI25|AI27|AI28|AI29)
+    # "^(AI36_05|AI36_06|AI36_13|AI36_14|AI36_16|AI36_20|AI36_22|AI36_24|AI36_25|AI36_26|AI36_27)", # see excel file "Fragebogen" for decisions for each item
+    "^(AI36_04|AI36_10|AI36_11|AI36_13|AI36_15|AI36_16|AI36_17|AI36_19|AI36_24|AI36_25|AI36_27)", # Sinas version
+    names(data),
+    value = T
+  ), # items we think students learn in the WoLKE seminar
+  "ailit_short" = grep(
+    #(AI01|AI04|AI09|AI15|AI17_0[1-5]|AI19|AI21|AI25|AI27|AI29)
+    "^(AI36_01|AI36_04|AI36_09|AI36_14|AI36_16|AI36_18|AI36_20|AI36_24|AI36_25|AI36_27)$",
+    names(data),
+    value = T
+  ) # short version of the AILIT
+)
 
 # create new columns with the means of the lists
 data <- data %>%
   mutate(
     AILIT = AI35_02, # default sumscore
-    # AILITWoLKE = rowMeans(
-    #   select(., all_of(list_items_ailit_wolke$ailit_wolke)),
-    #   na.rm = TRUE
-    # ),
-    # AILITShort = rowMeans(
-    #   select(., all_of(list_items_ailit_wolke$ailit_short)),
-    #   na.rm = TRUE
-    # ),
+    AILITWolke = rowSums(
+      select(., all_of(list_items_ailit_wolke$ailit_wolke)),
+      na.rm = TRUE
+    ),
+    AILITShort = rowSums(
+      select(., all_of(list_items_ailit_wolke$ailit_short)),
+      na.rm = TRUE
+    ),
     TK = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
     TPK = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
     TCK = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
@@ -350,6 +492,10 @@ data <- data %>%
       na.rm = TRUE
     ),
     PU = rowMeans(select(., all_of(list_items_pu$Pu)), na.rm = TRUE),
+    PU1 = ED03_01,
+    PU2 = ED03_02,
+    PU3 = ED03_03,
+    PU4 = ED03_04,
     # Ref    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
     TPACK_total = rowMeans(
       select(., all_of(unlist(list_items_i_tpack))),
@@ -371,7 +517,7 @@ mat <- cbind(
 ) # Vergleich Sprache vs MINT
 contrasts.CvsExp <- solve(t(mat))[, -1]
 colnames(contrasts.CvsExp) <- c("-C+MINT_Sprache", "-MINT+Sprache")
-contrasts(data_all$intervention) <- contrasts.CvsExp
+contrasts(data$intervention) <- contrasts.CvsExp
 
 # or use this coding system?
 # my.helmert <- matrix(c(-2 / 3, 1 / 3, 1 / 3, 0, -1 / 3, 1 / 3), ncol = 2)
@@ -383,6 +529,8 @@ random_terms_lmer <- c("(1 | code)")
 groups <- c("intervention")
 outcomes <- c(
   "AILIT",
+  "AILITWolke",
+  "AILITShort",
   "TK",
   "TPK",
   "TCK",
@@ -390,7 +538,11 @@ outcomes <- c(
   "TPACKcomp",
   "TPACKgenai",
   "Ethics",
-  "PU"
+  "PU",
+  "PU1",
+  "PU2",
+  "PU3",
+  "PU4"
 )
 time <- "time"
 controls <- c("age", "gender", "location")
@@ -410,64 +562,49 @@ lmers_prepost_all <-
 
 modelsummary_models(lmers_prepost_all)
 
-
-# ---------- klappt nich lol
-# data_sg <- data %>%
-#   group_by(code) %>%
-#   filter(all(c("pre", "post") %in% time)) %>%
-#   filter(location=="PH Schwäbisch Gmünd") %>%
-#   ungroup()
-# controls <- c("age", "gender")
-
-# lmers_prepost_sg <-
-#   lapply(outcomes, lmer, NULL, time, controls, random_terms_lmer, NULL, data = data_sg)
-
-# modelsummary_models(lmers_prepost_sg)
-
-# mm <- lmer(PU ~ time*intervention + age + gender + (1 | code), data = data %>% filter(all(c("pre", "post") %in% time)))
-# mm %>% summary(corr=F)
-# emmeans(lmers_prepost_all[[1]], ~ intervention*time|location, lmer.df = "satterthwaite") %>% contrast(interaction = "pairwise", adjust="none")
 ```
 
-```{r lmer-Sprache}
+```{r scale reliability with cronbach alpha}	
 
-#### SPRACHE ####
-# nur daten berücksichtigen die pre und post test haben
-data_sprache <- data %>%
-  filter(group == "sprache") %>%
-  group_by(code) %>%
-  filter(all(c("pre", "post") %in% time)) %>%
-  ungroup()
-
-## define variables
-random_terms_lmer <- c("(1 | code)")
-# groups <- c("intervention")
-outcomes <- c(
-  "AILIT",
-  "TK",
-  "TPK",
-  "TCK",
-  "TPACKappl",
-  "TPACKintrg",
-  "TPACKgenai",
-  "Ethics",
-  "PU"
+## look at MSD and cronbach alphas for outcomes for each intervention group
+# filter out pre data and relevant lists
+data_pre <- data %>% filter(time == "pre")
+all_scales <- c(
+  list_items_i_tpack,
+  list_items_pu
 )
-time <- "time"
-controls <- c("age", "gender")
+# 1) Cronbach's alpha for each scale
+alphas <- imap(
+  all_scales,
+  ~ psych::alpha(dplyr::select(data_pre, dplyr::all_of(.x)), warnings = FALSE)
+)
 
-# groups set as NA
-lmers_prepost <-
-  lapply(
-    outcomes,
-    fit_lmer,
-    NULL,
-    time,
-    controls,
-    random_terms_lmer,
-    NULL,
-    data = data_sprache
-  )
+# 2) Extract only std.alpha
+alpha_df <- tibble(
+  scale = names(alphas),
+  std_alpha = map_dbl(alphas, ~ .x$total$std.alpha)
+)
 
-modelsummary_models(lmers_prepost)
+# 3) Descriptives (composite = row means; switch to rowSums if you want sums)
+desc_df <- imap_dfr(
+  all_scales,
+  ~ {
+    comp <- rowMeans(dplyr::select(data_pre, dplyr::all_of(.x)), na.rm = TRUE)
+    tibble(
+      scale = .y,
+      mean = mean(comp, na.rm = TRUE),
+      sd = sd(comp, na.rm = TRUE),
+      min = min(comp, na.rm = TRUE),
+      max = max(comp, na.rm = TRUE)
+    )
+  }
+)
+
+# 4) Final summary: descriptives + std.alpha
+result_df <- desc_df %>%
+  left_join(alpha_df, by = "scale") %>%
+  arrange(scale)
+
+result_df
+
 ```

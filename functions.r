@@ -166,3 +166,44 @@ check_distances <- function(data, dist = 2) {
   # 5. View result
   print(matches_distance_x)
 }
+
+check_demo_vars <- function(
+  data,
+  demo_vars = c("age", "semester", "gender", "students"),
+  id = "code",
+  time_col = "time",
+  pre_label = "pre",
+  post_label = "post",
+  show_only_diff = FALSE
+) {
+  out <- data %>%
+    select(all_of(c(id, time_col, demo_vars))) %>%
+    # ensure a common type across demo vars
+    mutate(across(all_of(demo_vars), as.character)) %>%
+    pivot_longer(
+      cols = all_of(demo_vars),
+      names_to = "variable",
+      values_to = "value"
+      # alternatively: values_transform = as.character
+      # or: values_ptypes = list(value = character())
+    ) %>%
+    group_by(.data[[id]], variable, .data[[time_col]]) %>%
+    summarise(
+      value = paste(unique(na.omit(value)), collapse = ", "),
+      .groups = "drop"
+    ) %>%
+    pivot_wider(names_from = all_of(time_col), values_from = value) %>%
+    transmute(
+      !!id := .data[[id]],
+      variable,
+      pre = .data[[pre_label]],
+      post = .data[[post_label]],
+      match = (pre == post) | (is.na(pre) & is.na(post))
+    ) %>%
+    arrange(.data[[id]], variable)
+
+  if (show_only_diff) {
+    out <- filter(out, is.na(match) | !match)
+  }
+  print(n = 100, na.omit(out))
+}

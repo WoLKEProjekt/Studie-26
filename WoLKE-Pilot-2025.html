@@ -3328,7 +3328,7 @@ border: 0;
     <div>
     <div class="quarto-title-meta-heading">Veröffentlichungsdatum</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">26. August 2025</p>
+      <p class="date">27. August 2025</p>
     </div>
   </div>
   
@@ -3359,8 +3359,9 @@ border: 0;
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(modelsummary)</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(arsenal)</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forcats) </span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="at">file=</span><span class="st">&quot;functions.r&quot;</span>) <span class="co"># all outsourced funtions</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forcats)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(psych)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="at">file =</span> <span class="st">&quot;functions.r&quot;</span>) <span class="co"># all outsourced funtions</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="load-pre--and-posttest-and-reshape-data" class="level2" data-number="1.3">
@@ -3373,83 +3374,99 @@ border: 0;
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;./data/import_ki-lehramt.r&quot;</span>)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># extract items starting with TP (TPACK) or DE (Demographics)</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>data_raw <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">select</span>(QUESTNNR, <span class="fu">starts_with</span>(<span class="st">&quot;DE&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;AI&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;ED&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;TP&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;RE&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;CT&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;STARTED&quot;</span>), <span class="fu">starts_with</span>(<span class="st">&quot;FINISHED&quot;</span>))</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># sum(data_raw$QUESTNNR == &quot;mint-post&quot;) # 10 are incorrectly labeled</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>data_raw<span class="sc">$</span>QUESTNNR[</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">substr</span>(data_raw<span class="sc">$</span>STARTED, <span class="dv">6</span>, <span class="dv">7</span>) <span class="sc">==</span> <span class="st">&quot;07&quot;</span> <span class="sc">&amp;</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">grepl</span>(<span class="st">&quot;mint&quot;</span>, data_raw<span class="sc">$</span>QUESTNNR)</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>] <span class="ot">&lt;-</span> <span class="st">&quot;mint-post&quot;</span> <span class="co"># fixe some wrong entries in pre list to post</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co"># rename demographics</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>data_raw <span class="ot">&lt;-</span> data_raw <span class="sc">%&gt;%</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">code       =</span> <span class="fu">tolower</span>(DE13_01),</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">age        =</span> DE14_01,</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">semester   =</span> DE15_01,</span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">studies    =</span> DE16,</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">subject1   =</span> DE24,</span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">subject2   =</span> DE25,</span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">gender     =</span> DE10,</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">location   =</span> DE11,</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">semestercount =</span> DE15_01,</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">isp        =</span> DE09,</span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">#sprache_intervention = DE08,</span></span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">sprache_last_sem =</span> DE06, <span class="co">#already visited cans KI seminar</span></span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    <span class="co">#mint_control = DE07,</span></span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">mint_exclusion =</span> DE02,</span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention_sprache =</span> <span class="fu">case_when</span>(</span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_to_lower</span>(<span class="fu">as.character</span>(DE08)) <span class="sc">==</span> <span class="st">&quot;ja&quot;</span> <span class="sc">~</span> <span class="cn">TRUE</span>,</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_to_lower</span>(<span class="fu">as.character</span>(DE08)) <span class="sc">==</span> <span class="st">&quot;nein&quot;</span> <span class="sc">~</span> <span class="cn">FALSE</span></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention_mint =</span> <span class="fu">case_when</span>(</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_to_lower</span>(<span class="fu">as.character</span>(DE07)) <span class="sc">==</span> <span class="st">&quot;ja&quot;</span> <span class="sc">~</span> <span class="cn">TRUE</span>,</span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_to_lower</span>(<span class="fu">as.character</span>(DE07)) <span class="sc">==</span> <span class="st">&quot;nein&quot;</span> <span class="sc">~</span> <span class="cn">FALSE</span></span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention_only =</span> <span class="fu">coalesce</span>(intervention_sprache, <span class="cn">FALSE</span>) <span class="sc">|</span> <span class="fu">coalesce</span>(intervention_mint, <span class="cn">FALSE</span>),</span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention_only =</span> <span class="fu">as.logical</span>(intervention_only)</span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>data_raw <span class="ot">&lt;-</span> data_raw[, <span class="fu">c</span>(<span class="st">&quot;code&quot;</span>, <span class="fu">setdiff</span>(<span class="fu">names</span>(data_raw), <span class="st">&quot;code&quot;</span>))] <span class="co">#set code as first column</span></span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a><span class="co"># View(data_raw[(is.na(data_raw$code) | data_raw$code == &quot;&quot;), ])</span></span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>data_raw <span class="ot">&lt;-</span> data_raw[<span class="sc">!</span>(<span class="fu">is.na</span>(data_raw<span class="sc">$</span>code) <span class="sc">|</span> data_raw<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;&quot;</span>), ] <span class="co"># remove empty/na codes (=27)</span></span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a><span class="co"># remove non basic types to make it mergeable</span></span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>data_raw_clean <span class="ot">&lt;-</span> <span class="fu">clean_df</span>(data_raw)</span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a><span class="co"># factorize some columns</span></span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>data_raw_clean<span class="sc">$</span>gender <span class="ot">&lt;-</span> <span class="fu">factor</span>(data_raw_clean<span class="sc">$</span>gender)</span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>data_raw_clean<span class="sc">$</span>location <span class="ot">&lt;-</span> <span class="fu">factor</span>(data_raw_clean<span class="sc">$</span>location)</span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a><span class="co"># merge pre und post dfs</span></span>
-<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data_raw_clean</span>
-<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a><span class="co"># create relevant columns group (sprache mint), time (pre, post) and intervention (control, mint, sprache)</span></span>
-<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>    <span class="at">group =</span> <span class="fu">case_when</span>(</span>
-<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(QUESTNNR, <span class="st">&quot;sprache&quot;</span>) <span class="sc">~</span> <span class="st">&quot;sprache&quot;</span>,</span>
-<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(QUESTNNR, <span class="st">&quot;mint&quot;</span>) <span class="sc">~</span> <span class="st">&quot;mint&quot;</span></span>
-<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>    <span class="at">time =</span> <span class="fu">case_when</span>(</span>
-<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(QUESTNNR, <span class="st">&quot;post&quot;</span>) <span class="sc">~</span> <span class="st">&quot;post&quot;</span>,</span>
-<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>      <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">&quot;pre&quot;</span></span>
-<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>    <span class="at">group =</span> <span class="fu">factor</span>(group),</span>
-<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>    <span class="at">time =</span> <span class="fu">factor</span>(time, <span class="at">levels=</span><span class="fu">c</span>(<span class="st">&quot;pre&quot;</span>,<span class="st">&quot;post&quot;</span>))</span>
-<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a><span class="co"># create intervention with 3 factors: control, mint, sprache</span></span>
-<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(</span>
-<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>  <span class="at">intervention =</span> <span class="fu">factor</span>(<span class="fu">ifelse</span>(intervention_only <span class="sc">==</span> F, <span class="st">&quot;control&quot;</span>,</span>
-<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ifelse</span>(group <span class="sc">==</span> <span class="st">&quot;mint&quot;</span>, <span class="st">&quot;mint&quot;</span>, <span class="st">&quot;sprache&quot;</span>)))</span>
-<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a><span class="do">### EXCLUSIONS</span></span>
-<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>e1 <span class="ot">&lt;-</span> <span class="fu">nrow</span>(data[data<span class="sc">$</span>FINISHED <span class="sc">==</span> <span class="st">&quot;FALSE&quot;</span>, ]) <span class="co"># not FINISHED</span></span>
-<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>e1</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>data_raw <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    QUESTNNR,</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">starts_with</span>(<span class="st">&quot;DE&quot;</span>),</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">starts_with</span>(<span class="st">&quot;AI&quot;</span>),</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">starts_with</span>(<span class="st">&quot;ED&quot;</span>),</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">starts_with</span>(<span class="st">&quot;TP&quot;</span>),</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">starts_with</span>(<span class="st">&quot;RE&quot;</span>),</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">starts_with</span>(<span class="st">&quot;CT&quot;</span>),</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">starts_with</span>(<span class="st">&quot;STARTED&quot;</span>),</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">starts_with</span>(<span class="st">&quot;FINISHED&quot;</span>)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co"># sum(data_raw$QUESTNNR == &quot;mint-post&quot;) # 10 are incorrectly labeled</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>data_raw<span class="sc">$</span>QUESTNNR[</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">substr</span>(data_raw<span class="sc">$</span>STARTED, <span class="dv">6</span>, <span class="dv">7</span>) <span class="sc">==</span> <span class="st">&quot;07&quot;</span> <span class="sc">&amp;</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">grepl</span>(<span class="st">&quot;mint&quot;</span>, data_raw<span class="sc">$</span>QUESTNNR)</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>] <span class="ot">&lt;-</span> <span class="st">&quot;mint-post&quot;</span> <span class="co"># fixe some wrong entries in pre list to post</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="co"># rename demographics</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>data_raw <span class="ot">&lt;-</span> data_raw <span class="sc">%&gt;%</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">code =</span> <span class="fu">tolower</span>(DE13_01),</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">age =</span> DE14_01,</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">semester =</span> DE15_01,</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">studies =</span> DE16,</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">subject1 =</span> DE24,</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">subject2 =</span> DE25,</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">gender =</span> DE10,</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">location =</span> DE11,</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">semestercount =</span> DE15_01,</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>    <span class="at">isp =</span> DE09,</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    <span class="co">#sprache_intervention = DE08,</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">sprache_last_sem =</span> DE06, <span class="co">#already visited cans KI seminar</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>    <span class="co">#mint_control = DE07,</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">mint_exclusion =</span> DE02,</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention_sprache =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_to_lower</span>(<span class="fu">as.character</span>(DE08)) <span class="sc">==</span> <span class="st">&quot;ja&quot;</span> <span class="sc">~</span> <span class="cn">TRUE</span>,</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_to_lower</span>(<span class="fu">as.character</span>(DE08)) <span class="sc">==</span> <span class="st">&quot;nein&quot;</span> <span class="sc">~</span> <span class="cn">FALSE</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention_mint =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_to_lower</span>(<span class="fu">as.character</span>(DE07)) <span class="sc">==</span> <span class="st">&quot;ja&quot;</span> <span class="sc">~</span> <span class="cn">TRUE</span>,</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_to_lower</span>(<span class="fu">as.character</span>(DE07)) <span class="sc">==</span> <span class="st">&quot;nein&quot;</span> <span class="sc">~</span> <span class="cn">FALSE</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention_only =</span> <span class="fu">coalesce</span>(intervention_sprache, <span class="cn">FALSE</span>) <span class="sc">|</span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>      <span class="fu">coalesce</span>(intervention_mint, <span class="cn">FALSE</span>),</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention_only =</span> <span class="fu">as.logical</span>(intervention_only)</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>data_raw <span class="ot">&lt;-</span> data_raw[, <span class="fu">c</span>(<span class="st">&quot;code&quot;</span>, <span class="fu">setdiff</span>(<span class="fu">names</span>(data_raw), <span class="st">&quot;code&quot;</span>))] <span class="co">#set code as first column</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a><span class="co"># View(data_raw[(is.na(data_raw$code) | data_raw$code == &quot;&quot;), ])</span></span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>data_raw <span class="ot">&lt;-</span> data_raw[<span class="sc">!</span>(<span class="fu">is.na</span>(data_raw<span class="sc">$</span>code) <span class="sc">|</span> data_raw<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;&quot;</span>), ] <span class="co"># remove empty/na codes (=27)</span></span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>data_raw_clean <span class="ot">&lt;-</span> <span class="fu">clean_df</span>(data_raw)</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a><span class="co"># data_raw_clean &lt;- data_raw</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a><span class="co"># factorize some columns</span></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>data_raw_clean<span class="sc">$</span>gender <span class="ot">&lt;-</span> <span class="fu">factor</span>(data_raw_clean<span class="sc">$</span>gender) <span class="co"># </span><span class="al">TODO</span><span class="co">: umbenennen und reihenfolge der levels angeben</span></span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>data_raw_clean<span class="sc">$</span>location <span class="ot">&lt;-</span> <span class="fu">factor</span>(data_raw_clean<span class="sc">$</span>location) <span class="co"># </span><span class="al">TODO</span><span class="co">: umbenennen und reihenfolge der levels angeben</span></span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a><span class="co"># merge pre und post dfs</span></span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data_raw_clean</span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a><span class="co"># create relevant columns group (sprache mint), time (pre, post) and intervention (control, mint, sprache)</span></span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>    <span class="at">group =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(QUESTNNR, <span class="st">&quot;sprache&quot;</span>) <span class="sc">~</span> <span class="st">&quot;sprache&quot;</span>,</span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(QUESTNNR, <span class="st">&quot;mint&quot;</span>) <span class="sc">~</span> <span class="st">&quot;mint&quot;</span></span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>    <span class="at">time =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(QUESTNNR, <span class="st">&quot;post&quot;</span>) <span class="sc">~</span> <span class="st">&quot;post&quot;</span>,</span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>      <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">&quot;pre&quot;</span></span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>    <span class="at">group =</span> <span class="fu">factor</span>(group), <span class="co"># </span><span class="al">TODO</span><span class="co">: mint=stem sprache=language</span></span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>    <span class="at">time =</span> <span class="fu">factor</span>(time, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;pre&quot;</span>, <span class="st">&quot;post&quot;</span>))</span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a><span class="co"># create intervention with 3 factors: control, mint, sprache</span></span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a>    <span class="at">intervention =</span> <span class="fu">factor</span>(<span class="fu">ifelse</span>(</span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a>      intervention_only <span class="sc">==</span> F,</span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;control&quot;</span>,</span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>      <span class="fu">ifelse</span>(group <span class="sc">==</span> <span class="st">&quot;mint&quot;</span>, <span class="st">&quot;mint&quot;</span>, <span class="st">&quot;sprache&quot;</span>) <span class="co"># </span><span class="al">TODO</span><span class="co">: mint=stem sprache=language</span></span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a>    ))</span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a><span class="do">### EXCLUSIONS</span></span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a>e1 <span class="ot">&lt;-</span> <span class="fu">nrow</span>(data[data<span class="sc">$</span>FINISHED <span class="sc">==</span> F, ]) <span class="co"># not FINISHED</span></span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a>e1</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 52</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[data<span class="sc">$</span>FINISHED <span class="sc">==</span> <span class="st">&quot;TRUE&quot;</span>, ] </span>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[data<span class="sc">$</span>FINISHED <span class="sc">==</span> T, ] <span class="co"># only keep completed questionnaires</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>e2 <span class="ot">&lt;-</span> <span class="fu">nrow</span>(data[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;höel07&quot;</span>, ])</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>e2</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -3459,104 +3476,212 @@ border: 0;
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[data<span class="sc">$</span>code <span class="sc">!=</span> <span class="st">&quot;höel07&quot;</span>, ] <span class="co">#example code</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># check for multiple entries and completed questionnaires</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># view a specific code; obsu02 stfr08 (both multiple finished questionnaire, rowindex 1811)</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[<span class="sc">!</span><span class="fu">rownames</span>(data) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;1811&quot;</span>, <span class="st">&quot;1814&quot;</span>), ]</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># View(data[data$code == &quot;obsu02&quot;, ])</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Code corrections from levenshtein checks</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;mair10&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;moir10&quot;</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;drch17&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;frch17&quot;</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;loma26&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;goma26&quot;</span></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;sisu00&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;sisu01&quot;</span></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;mosy24&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;stsy24&quot;</span></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;frco30&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;scco30&quot;</span></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;meli06&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;meli63&quot;</span></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;waol30&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;spol30&quot;</span></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="co"># check code distances</span></span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>check_distances <span class="ot">&lt;-</span> F</span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (check_distances){</span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># finding typos in code</span></span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get and save single instances of code</span></span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  single_codes <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">count</span>(code) <span class="sc">%&gt;%</span></span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(n <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(code)</span>
-<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Get only the rows where code is in single_codes</span></span>
-<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>  data_single <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(code <span class="sc">%in%</span> single_codes)</span>
-<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now split the codes based on group</span></span>
-<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>  single_codes_pre <span class="ot">&lt;-</span> data_single <span class="sc">%&gt;%</span></span>
-<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(time <span class="sc">==</span> <span class="st">&quot;pre&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(code)</span>
-<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>  single_codes_post <span class="ot">&lt;-</span> data_single <span class="sc">%&gt;%</span></span>
-<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(time <span class="sc">==</span> <span class="st">&quot;post&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(code)</span>
-<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 1. Compute the distance matrix</span></span>
-<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>  dist_matrix <span class="ot">&lt;-</span> <span class="fu">stringdistmatrix</span>(<span class="at">a =</span> single_codes_pre, <span class="at">b =</span> single_codes_post, <span class="at">method =</span> <span class="st">&quot;lv&quot;</span>)</span>
-<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 2. Convert to data frame with row and column names</span></span>
-<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>  dist_df <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(dist_matrix)</span>
-<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rownames</span>(dist_df) <span class="ot">&lt;-</span> single_codes_pre</span>
-<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">colnames</span>(dist_df) <span class="ot">&lt;-</span> single_codes_post</span>
-<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 3. Extract the index positions where distance == 2</span></span>
-<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>  matches_2 <span class="ot">&lt;-</span> <span class="fu">which</span>(dist_df <span class="sc">==</span> <span class="dv">2</span>, <span class="at">arr.ind =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 4. Create a data frame of those matches</span></span>
-<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>  matches_distance_2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>    <span class="at">pre_code =</span> <span class="fu">rownames</span>(dist_df)[matches_2[, <span class="st">&quot;row&quot;</span>]],</span>
-<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>    <span class="at">post_code =</span> <span class="fu">colnames</span>(dist_df)[matches_2[, <span class="st">&quot;col&quot;</span>]],</span>
-<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>    <span class="at">distance =</span> <span class="dv">2</span></span>
-<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 5. View result</span></span>
-<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>  <span class="co"># View(matches_distance_2)</span></span>
-<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a><span class="co"># save data</span></span>
-<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(data, <span class="at">file =</span> <span class="st">&quot;data/data.Rdata&quot;</span>)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># table(table(data$code))</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># view a specific code; obsu02 stfr08 (both multiple finished questionnaire, rowindex 1811)</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data[<span class="sc">!</span><span class="fu">rownames</span>(data) <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;1811&quot;</span>, <span class="st">&quot;1814&quot;</span>), ] <span class="co"># Wie haben wir uns entschieden? am besten erster eintrag nehmen</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># View(data[data$code == &quot;obsu02&quot;, ])</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="do">## Corrections</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Code corrections from levenshtein checks</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;mair10&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;moir10&quot;</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;drch17&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;frch17&quot;</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;loma26&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;goma26&quot;</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;sisu00&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;sisu01&quot;</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;mosy24&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;stsy24&quot;</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;frco30&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;scco30&quot;</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;meli06&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;meli63&quot;</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>code[data<span class="sc">$</span>code <span class="sc">==</span> <span class="st">&quot;waol30&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;spol30&quot;</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="co"># investigate: df with subjects having unclear studies, check semestercount to see if BA or MA</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>temp_df <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(DE16_16)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(code, DE16_16, semester, intervention)</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="co"># append (Master) to those with semestercount &gt; 6 according to tmp_df</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>DE16_16[data<span class="sc">$</span>code <span class="sc">%in%</span> temp_df<span class="sc">$</span>code] <span class="ot">&lt;-</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">paste0</span>(data<span class="sc">$</span>DE16_16[data<span class="sc">$</span>code <span class="sc">%in%</span> temp_df<span class="sc">$</span>code], <span class="st">&quot; (Master)&quot;</span>)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="fu">remove</span>(temp_df)</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="co"># create new variable subject with levels bachelor and master depending on studies value</span></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">students =</span> <span class="fu">case_when</span>(</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(<span class="fu">tolower</span>(studies), <span class="st">&quot;master&quot;</span>) <span class="sc">~</span> <span class="st">&quot;master&quot;</span>,</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(<span class="fu">tolower</span>(studies), <span class="st">&quot;bachelor&quot;</span>) <span class="sc">~</span> <span class="st">&quot;bachelor&quot;</span>,</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(<span class="fu">tolower</span>(studies), <span class="st">&quot;nachstudium&quot;</span>) <span class="sc">~</span> <span class="st">&quot;master&quot;</span>, <span class="co"># hier gibt es eine person, die nachstudium angegeben hat, aber mit semestercount 6/8 setzen wir ihn auf master</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(<span class="fu">tolower</span>(studies), <span class="st">&quot;sonstiges&quot;</span>) <span class="sc">&amp;</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>        <span class="fu">str_detect</span>(<span class="fu">tolower</span>(DE16_16), <span class="st">&quot;master&quot;</span>) <span class="sc">~</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;master&quot;</span>,</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(<span class="fu">tolower</span>(studies), <span class="st">&quot;sonstiges&quot;</span>) <span class="sc">&amp;</span></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>        <span class="fu">str_detect</span>(<span class="fu">tolower</span>(DE16_16), <span class="st">&quot;bachelor&quot;</span>) <span class="sc">~</span></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;bachelor&quot;</span>,</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>      <span class="cn">TRUE</span> <span class="sc">~</span> <span class="cn">NA</span></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>    <span class="at">students =</span> <span class="fu">factor</span>(students, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;bachelor&quot;</span>, <span class="st">&quot;master&quot;</span>))</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a><span class="co"># check code distances</span></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>check_dist <span class="ot">&lt;-</span> F</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (check_dist) {</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">check_distances</span>(data, <span class="dv">2</span>)</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a><span class="co"># check demograph. differences pre to post</span></span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a><span class="fu">check_demo_vars</span>(</span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>  data,</span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>  <span class="at">demo_vars =</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;semester&quot;</span>, <span class="st">&quot;gender&quot;</span>, <span class="st">&quot;students&quot;</span>),</span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="st">&quot;code&quot;</span>,</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>  <span class="at">show_only_diff =</span> T</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 34 × 5
+   code   variable pre      post     match
+   &lt;chr&gt;  &lt;chr&gt;    &lt;chr&gt;    &lt;chr&gt;    &lt;lgl&gt;
+ 1 basa13 age      23       24       FALSE
+ 2 beta22 age      21       22       FALSE
+ 3 debä28 age      29       30       FALSE
+ 4 ensa17 age      23       24       FALSE
+ 5 grsa18 age      26       27       FALSE
+ 6 grsa18 gender   Weiblich Männlich FALSE
+ 7 hani25 age      20       21       FALSE
+ 8 hoja08 age      22       23       FALSE
+ 9 imsa23 gender   Weiblich Divers   FALSE
+10 inme14 age      21       22       FALSE
+11 kesü16 semester 6        8        FALSE
+12 leel08 semester 10       11       FALSE
+13 lesa12 age      22       23       FALSE
+14 luil07 age      27       28       FALSE
+15 luil07 semester 8        1        FALSE
+16 mail19 semester 11       9        FALSE
+17 mama03 age      22       23       FALSE
+18 meli63 age      23       24       FALSE
+19 mije10 age      25       26       FALSE
+20 mije10 semester 8        2        FALSE
+21 müin22 age      22       24       FALSE
+22 obpe30 semester 10       7        FALSE
+23 osel08 semester 10       3        FALSE
+24 rosa20 semester 6        4        FALSE
+25 rosy03 age      24       25       FALSE
+26 röma24 semester 8        7        FALSE
+27 sape26 age      24       25       FALSE
+28 scco30 semester 9        3        FALSE
+29 scna18 semester 7        8        FALSE
+30 secl07 age      24       25       FALSE
+31 stfr08 age      31       32       FALSE
+32 stfr08 semester 8        5        FALSE
+33 stsy24 age      22       23       FALSE
+34 zean16 age      20       21       FALSE</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># correct age in post to age in pre (to report one age and have same age for subj when calc models)</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">age =</span> <span class="fu">ifelse</span>(time <span class="sc">==</span> <span class="st">&quot;post&quot;</span>, age[time <span class="sc">==</span> <span class="st">&quot;pre&quot;</span>], age)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># correct gender in post to gender in pre</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">gender =</span> <span class="fu">ifelse</span>(time <span class="sc">==</span> <span class="st">&quot;post&quot;</span>, gender[time <span class="sc">==</span> <span class="st">&quot;pre&quot;</span>], gender)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="co"># look at data entries for codes kesü16, leel08, mail19, obpe30, osel08, rosa20, röma24, scna18, stfr08</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>codes_of_interest <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;mail19&quot;</span>,</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;obpe30&quot;</span>,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;rosa20&quot;</span>,</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;stfr08&quot;</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>df_subset <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(code <span class="sc">%in%</span> codes_of_interest) <span class="sc">%&gt;%</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(code, subject1, subject2, students, semester, time, intervention, isp)</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="fu">View</span>(df_subset)</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co"># semester count correction (post to pre) after reviewing dem. data</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>adjust_semester_to_pre <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;luil07&quot;</span>,</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;mije10&quot;</span>,</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;scco30&quot;</span>,</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;leel08&quot;</span>,</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;scna18&quot;</span>,</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;röma24&quot;</span>,</span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;osel08&quot;</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>    <span class="at">semester =</span> <span class="fu">ifelse</span>(</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>      code <span class="sc">%in%</span> adjust_semester_to_pre <span class="sc">&amp;</span> time <span class="sc">==</span> <span class="st">&quot;post&quot;</span>,</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>      semester[time <span class="sc">==</span> <span class="st">&quot;pre&quot;</span>],</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>      semester</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="co"># semester count correction (pre to post) after reviewing dem. data</span></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>adjust_semester_to_post <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;kesü16&quot;</span>)</span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">semester =</span> <span class="fu">ifelse</span>(</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>      code <span class="sc">%in%</span> adjust_semester_to_post <span class="sc">&amp;</span> time <span class="sc">==</span> <span class="st">&quot;pre&quot;</span>,</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>      semester[time <span class="sc">==</span> <span class="st">&quot;post&quot;</span>],</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>      semester</span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>data_all <span class="ot">&lt;-</span> data</span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a><span class="co"># save data for demographics (no pre-post filtering)</span></span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(data_all, <span class="at">file =</span> <span class="st">&quot;data/data_all.Rdata&quot;</span>)</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a><span class="co"># only keep subjects with both data in pre and post test for analysis</span></span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">all</span>(<span class="fu">c</span>(<span class="st">&quot;pre&quot;</span>, <span class="st">&quot;post&quot;</span>) <span class="sc">%in%</span> time)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a><span class="fu">save</span>(data, <span class="at">file =</span> <span class="st">&quot;data/data.Rdata&quot;</span>)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate the tableby summary</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>preprocess_data <span class="ot">&lt;-</span> <span class="cf">function</span>(data) {</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">%&gt;%</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">droplevels</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>      <span class="at">studies  =</span> <span class="fu">fct_infreq</span>(studies),</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">subject1 =</span> <span class="fu">fct_infreq</span>(subject1),</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">subject2 =</span> <span class="fu">fct_infreq</span>(subject2)</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co"># only get data from pretest for demographic data to see registered</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>data_pretest <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span> </span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(time <span class="sc">==</span> <span class="st">&quot;pre&quot;</span>)</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(data_pretest) <span class="co"># amount of registered participants 145</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate the tableby summary</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>preprocess_data <span class="ot">&lt;-</span> <span class="cf">function</span>(data_all) {</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">%&gt;%</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">droplevels</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>      <span class="at">studies =</span> <span class="fu">fct_infreq</span>(studies),</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">subject1 =</span> <span class="fu">fct_infreq</span>(subject1),</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">subject2 =</span> <span class="fu">fct_infreq</span>(subject2)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co"># only get data from pretest for demographic data to see registered</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>data_pretest <span class="ot">&lt;-</span> data_all <span class="sc">%&gt;%</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(time <span class="sc">==</span> <span class="st">&quot;pre&quot;</span>)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(data_pretest) <span class="co"># amount of registered participants 145</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 145</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># only take samples with pre and post test data into account, singlecodes</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>data_dem_all <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">all</span>(<span class="fu">c</span>(<span class="st">&quot;pre&quot;</span>, <span class="st">&quot;post&quot;</span>) <span class="sc">%in%</span> time)) <span class="sc">%&gt;%</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(time <span class="sc">==</span> <span class="st">&quot;post&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(data_dem_all) <span class="co"># 76 participants with pre and post test</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># only take samples with pre and post test data into account, singlecodes</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>data_dem_all <span class="ot">&lt;-</span> data_all <span class="sc">%&gt;%</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">all</span>(<span class="fu">c</span>(<span class="st">&quot;pre&quot;</span>, <span class="st">&quot;post&quot;</span>) <span class="sc">%in%</span> time)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(time <span class="sc">==</span> <span class="st">&quot;post&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(data_dem_all) <span class="co"># 76 participants with pre and post test</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 76</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the formula</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>demographics_formula <span class="ot">&lt;-</span> intervention <span class="sc">~</span>  location <span class="sc">+</span> age  <span class="sc">+</span> gender <span class="sc">+</span> semester <span class="sc">+</span> isp <span class="sc">+</span> studies <span class="sc">+</span> subject1 <span class="sc">+</span> subject2</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>demographics <span class="ot">&lt;-</span> <span class="fu">tableby</span>(demographics_formula, <span class="at">data =</span> data_dem_all)</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Ausgabe als Tabellen</span></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(demographics) <span class="sc">%&gt;%</span></span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Demographic Summary&quot;</span>)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the formula</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>demographics_formula <span class="ot">&lt;-</span> intervention <span class="sc">~</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  location <span class="sc">+</span> age <span class="sc">+</span> gender <span class="sc">+</span> semester <span class="sc">+</span> isp <span class="sc">+</span> studies <span class="sc">+</span> subject1 <span class="sc">+</span> subject2</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>demographics <span class="ot">&lt;-</span> <span class="fu">tableby</span>(demographics_formula, <span class="at">data =</span> data_dem_all)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Ausgabe als Tabellen</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(demographics) <span class="sc">%&gt;%</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Demographic Summary&quot;</span>)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Demographic Summary</caption>
@@ -4046,98 +4171,199 @@ border: 0;
 </tbody>
 </table>
 </div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Welche Fächer gibt es wie oft?</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>counts <span class="ot">&lt;-</span> data_dem_all <span class="sc">%&gt;%</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(subject1, subject2),</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to =</span> <span class="st">&quot;slot&quot;</span>,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">&quot;subject&quot;</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">subject =</span> <span class="fu">str_squish</span>(subject)) <span class="sc">%&gt;%</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(subject), subject <span class="sc">!=</span> <span class="st">&quot;&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(subject, <span class="at">sort =</span> <span class="cn">TRUE</span>, <span class="at">name =</span> <span class="st">&quot;n&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">p =</span> n <span class="sc">/</span> <span class="fu">sum</span>(n))</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>counts</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 18 × 3
+   subject                                                          n       p
+   &lt;chr&gt;                                                        &lt;int&gt;   &lt;dbl&gt;
+ 1 Mathematik                                                      31 0.204  
+ 2 Deutsch                                                         27 0.178  
+ 3 Biologie                                                        15 0.0987 
+ 4 Englisch                                                        11 0.0724 
+ 5 Chemie                                                           8 0.0526 
+ 6 Informatik                                                       8 0.0526 
+ 7 Sport                                                            8 0.0526 
+ 8 Technik                                                          8 0.0526 
+ 9 Wirtschaft                                                       7 0.0461 
+10 Geographie                                                       5 0.0329 
+11 Musik                                                            5 0.0329 
+12 Alltagskultur und Gesundheit                                     4 0.0263 
+13 Geschichte                                                       4 0.0263 
+14 Physik                                                           3 0.0197 
+15 Politikwissenschaft                                              3 0.0197 
+16 Kunst                                                            2 0.0132 
+17 Theologie / Religionspädagogik (evangelisch oder katholisch)     2 0.0132 
+18 Französisch                                                      1 0.00658</code></pre>
+</div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="do">### grouping scales</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="do">## TPACK</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co"># all TPACK items used</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>list_items_i_tpack <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TK&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP01_&quot;</span>, <span class="fu">names</span>(data), <span class="at">value=</span>T),</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPK&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP02_&quot;</span>, <span class="fu">names</span>(data), <span class="at">value=</span>T),</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TCK&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP03_&quot;</span>, <span class="fu">names</span>(data), <span class="at">value=</span>T),</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACK_appl&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP04_(01|02|03|09|10|11|12|13|14)$&quot;</span>, <span class="fu">names</span>(data), <span class="at">value=</span>T), <span class="co"># Sub-Subskala 1: Anwendung</span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACK_intrg&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP04_(04|05|06|07|08|15)$&quot;</span>, <span class="fu">names</span>(data), <span class="at">value=</span>T), <span class="co"># Sub-Subskala 2: Integration</span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACK_genai&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP04_(09|10|11|13|14)$&quot;</span>, <span class="fu">names</span>(data), <span class="at">value=</span>T), <span class="co"># Sub-Subskala 3: GenAI Items</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Ethics&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP05_0[1-6]$&quot;</span>, <span class="fu">names</span>(data), <span class="at">value=</span>T) <span class="co">#im pretest nur items 1-6 vorhanden 7,8 kamen im post dazu</span></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="co"># ein paar ethik items müssen noch rausgenommen werden, die nur im posttest erhoben wurden. hier nur check</span></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="co"># data_subset1 &lt;- data %&gt;% select(all_of(unlist(list_items_i_tpack)))</span></span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="co"># View(data_subset1)</span></span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="do">## Perceived Usefulnes</span></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>list_items_pu <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Pu&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^ED03_&quot;</span>, <span class="fu">names</span>(data), <span class="at">value=</span>T)</span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="co"># data_subset2 &lt;- data %&gt;% select(all_of(unlist(list_items_pu)))</span></span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="co"># sum(data_subset2 &lt; 0, na.rm = TRUE)</span></span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="do">## Reflection (bei Piloten irrelevant)</span></span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="co"># list_items_ref &lt;- list(</span></span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="co">#   &quot;Ref&quot; = grep(&quot;^RE01_&quot;, names(data), value=T)</span></span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="co"># )</span></span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="co"># data_subset3 &lt;- data %&gt;% select(all_of(unlist(list_items_ref)))</span></span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="co"># sum(data_subset3 &lt; 0, na.rm = TRUE)</span></span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="do">## AI Literacy</span></span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">: do we want to split the results for each subscale?</span></span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a><span class="co"># data &lt;- data %&gt;% mutate(AILIT = AI35_02) # rename to sumscore</span></span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a><span class="co"># create new columns with the means of the lists</span></span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">AILIT =</span> AI35_02,</span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">TK     =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TK)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPK    =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPK)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">TCK    =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TCK)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACKappl  =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPACK_appl)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACKintrg  =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPACK_intrg)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACKintrg  =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPACK_intrg)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACKgenai  =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPACK_genai)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>    <span class="at">Ethics =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>Ethics)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>    <span class="at">PU     =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_pu<span class="sc">$</span>Pu)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Ref    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),</span></span>
-<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACK_total =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(<span class="fu">unlist</span>(list_items_i_tpack))), <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="do">### grouping scales</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="do">## TPACK</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co"># all TPACK items used</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>list_items_i_tpack <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TK&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP01_&quot;</span>, <span class="fu">names</span>(data), <span class="at">value =</span> T),</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPK&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP02_&quot;</span>, <span class="fu">names</span>(data), <span class="at">value =</span> T),</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TCK&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP03_&quot;</span>, <span class="fu">names</span>(data), <span class="at">value =</span> T),</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACK_know&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP04_(04|05|06|07|08|15)$&quot;</span>, <span class="fu">names</span>(data), <span class="at">value =</span> T), <span class="co"># Sub-Subskala 1: Wissen (&quot;ich weiß, wie ...&quot;)</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACK_comp&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;^TP04_(01|02|03|09|10|11|12|13|14)$&quot;</span>,</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">names</span>(data),</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">value =</span> T</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>  ), <span class="co"># Sub-Subskala 2: Kompetenzen (&quot;ich kann ...&quot;)</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACK_genai&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP04_(09|10|11|13|14)$&quot;</span>, <span class="fu">names</span>(data), <span class="at">value =</span> T), <span class="co"># Sub-Subskala 3: GenAI Items</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Ethics&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^TP05_0[1-6]$&quot;</span>, <span class="fu">names</span>(data), <span class="at">value =</span> T) <span class="co">#im pretest nur items 1-6 vorhanden 7,8 kamen im post dazu</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="co"># ein paar ethik items müssen noch rausgenommen werden, die nur im posttest erhoben wurden. hier nur check</span></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a><span class="co"># data_subset1 &lt;- data %&gt;% select(all_of(unlist(list_items_i_tpack)))</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="co"># View(data_subset1)</span></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a><span class="do">## Perceived Usefulnes</span></span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>list_items_pu <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Pu&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(<span class="st">&quot;^ED03_&quot;</span>, <span class="fu">names</span>(data), <span class="at">value =</span> T)</span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a><span class="co"># data_subset2 &lt;- data %&gt;% select(all_of(unlist(list_items_pu)))</span></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a><span class="co"># sum(data_subset2 &lt; 0, na.rm = TRUE)</span></span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a><span class="do">## Reflection (bei Piloten irrelevant)</span></span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a><span class="co"># list_items_ref &lt;- list(</span></span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a><span class="co">#   &quot;Ref&quot; = grep(&quot;^RE01_&quot;, names(data), value=T)</span></span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a><span class="co"># data_subset3 &lt;- data %&gt;% select(all_of(unlist(list_items_ref)))</span></span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a><span class="co"># sum(data_subset3 &lt; 0, na.rm = TRUE)</span></span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a><span class="do">## AI Literacy</span></span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a><span class="co"># data &lt;- data %&gt;% mutate(AILIT = AI35_02) # rename to sumscore</span></span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>list_items_ailit_wolke <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;ailit_wolke&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(</span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a>    <span class="co">#(AI05|AI06|AI14|AI15|AI17_0[1-5]|AI21|AI23|AI25|AI27|AI28|AI29)</span></span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;^(AI36_05|AI36_06|AI36_13|AI36_14|AI36_16|AI36_20|AI36_22|AI36_24|AI36_25|AI36_26|AI36_27)&quot;</span>, <span class="co"># see excel file &quot;Fragebogen&quot; for decisions for each item</span></span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a>    <span class="fu">names</span>(data),</span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">value =</span> T</span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a>  ), <span class="co"># items we think students learn in the WoLKE seminar</span></span>
+<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;ailit_short&quot;</span> <span class="ot">=</span> <span class="fu">grep</span>(</span>
+<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a>    <span class="co">#(AI01|AI04|AI09|AI15|AI17_0[1-5]|AI19|AI21|AI25|AI27|AI29)</span></span>
+<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;^(AI36_01|AI36_04|AI36_09|AI36_14|AI36_16|AI36_18|AI36_20|AI36_24|AI36_25|AI36_27)$&quot;</span>,</span>
+<span id="cb16-48"><a href="#cb16-48" aria-hidden="true" tabindex="-1"></a>    <span class="fu">names</span>(data),</span>
+<span id="cb16-49"><a href="#cb16-49" aria-hidden="true" tabindex="-1"></a>    <span class="at">value =</span> T</span>
+<span id="cb16-50"><a href="#cb16-50" aria-hidden="true" tabindex="-1"></a>  ) <span class="co"># short version of the AILIT</span></span>
+<span id="cb16-51"><a href="#cb16-51" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-52"><a href="#cb16-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-53"><a href="#cb16-53" aria-hidden="true" tabindex="-1"></a><span class="co"># create new columns with the means of the lists</span></span>
+<span id="cb16-54"><a href="#cb16-54" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb16-55"><a href="#cb16-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb16-56"><a href="#cb16-56" aria-hidden="true" tabindex="-1"></a>    <span class="at">AILIT =</span> AI35_02, <span class="co"># default sumscore</span></span>
+<span id="cb16-57"><a href="#cb16-57" aria-hidden="true" tabindex="-1"></a>    <span class="at">AILITWolke =</span> <span class="fu">rowSums</span>(</span>
+<span id="cb16-58"><a href="#cb16-58" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_ailit_wolke<span class="sc">$</span>ailit_wolke)),</span>
+<span id="cb16-59"><a href="#cb16-59" aria-hidden="true" tabindex="-1"></a>      <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb16-60"><a href="#cb16-60" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb16-61"><a href="#cb16-61" aria-hidden="true" tabindex="-1"></a>    <span class="at">AILITShort =</span> <span class="fu">rowSums</span>(</span>
+<span id="cb16-62"><a href="#cb16-62" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_ailit_wolke<span class="sc">$</span>ailit_short)),</span>
+<span id="cb16-63"><a href="#cb16-63" aria-hidden="true" tabindex="-1"></a>      <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb16-64"><a href="#cb16-64" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb16-65"><a href="#cb16-65" aria-hidden="true" tabindex="-1"></a>    <span class="at">TK =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TK)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb16-66"><a href="#cb16-66" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPK =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPK)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb16-67"><a href="#cb16-67" aria-hidden="true" tabindex="-1"></a>    <span class="at">TCK =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TCK)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb16-68"><a href="#cb16-68" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACKknow =</span> <span class="fu">rowMeans</span>(</span>
+<span id="cb16-69"><a href="#cb16-69" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPACK_know)),</span>
+<span id="cb16-70"><a href="#cb16-70" aria-hidden="true" tabindex="-1"></a>      <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb16-71"><a href="#cb16-71" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb16-72"><a href="#cb16-72" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACKcomp =</span> <span class="fu">rowMeans</span>(</span>
+<span id="cb16-73"><a href="#cb16-73" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPACK_comp)),</span>
+<span id="cb16-74"><a href="#cb16-74" aria-hidden="true" tabindex="-1"></a>      <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb16-75"><a href="#cb16-75" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb16-76"><a href="#cb16-76" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACKgenai =</span> <span class="fu">rowMeans</span>(</span>
+<span id="cb16-77"><a href="#cb16-77" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>TPACK_genai)),</span>
+<span id="cb16-78"><a href="#cb16-78" aria-hidden="true" tabindex="-1"></a>      <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb16-79"><a href="#cb16-79" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb16-80"><a href="#cb16-80" aria-hidden="true" tabindex="-1"></a>    <span class="at">Ethics =</span> <span class="fu">rowMeans</span>(</span>
+<span id="cb16-81"><a href="#cb16-81" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_i_tpack<span class="sc">$</span>Ethics)),</span>
+<span id="cb16-82"><a href="#cb16-82" aria-hidden="true" tabindex="-1"></a>      <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb16-83"><a href="#cb16-83" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb16-84"><a href="#cb16-84" aria-hidden="true" tabindex="-1"></a>    <span class="at">PU =</span> <span class="fu">rowMeans</span>(<span class="fu">select</span>(., <span class="fu">all_of</span>(list_items_pu<span class="sc">$</span>Pu)), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb16-85"><a href="#cb16-85" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Ref    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),</span></span>
+<span id="cb16-86"><a href="#cb16-86" aria-hidden="true" tabindex="-1"></a>    <span class="at">TPACK_total =</span> <span class="fu">rowMeans</span>(</span>
+<span id="cb16-87"><a href="#cb16-87" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(., <span class="fu">all_of</span>(<span class="fu">unlist</span>(list_items_i_tpack))),</span>
+<span id="cb16-88"><a href="#cb16-88" aria-hidden="true" tabindex="-1"></a>      <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb16-89"><a href="#cb16-89" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb16-90"><a href="#cb16-90" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="analysis" class="level2" data-number="1.4">
 <h2 data-number="1.4" class="anchored" data-anchor-id="analysis"><span class="header-section-number">1.4</span> Analysis</h2>
 <p>Im folgenden verwenden wir drei Kontraste: (0) Intercept = Gesamtdurchschnitt aller Gruppen, (1) Exp-Ø (MINT+Sprache)/2 vs. Control, (2) Sprache vs. MINT. Mit der Zeit-Interaktion testen wir, ob sich diese Unterschiede über die Zeit unterschiedlich entwickeln (Difference-in-Differences: Exp-Ø vs. Control sowie Sprache vs. MINT).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>data_all <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">all</span>(<span class="fu">c</span>(<span class="st">&quot;pre&quot;</span>, <span class="st">&quot;post&quot;</span>) <span class="sc">%in%</span> time)) <span class="sc">%&gt;%</span></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="do">## define contrast Control vs Exp1+Exp2 - vermutlich bessere version, da die Estimates &quot;stimmen&quot;</span></span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>mat <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">c</span>(<span class="dv">1</span> <span class="sc">/</span> <span class="dv">3</span>, <span class="dv">1</span> <span class="sc">/</span> <span class="dv">3</span>, <span class="dv">1</span> <span class="sc">/</span> <span class="dv">3</span>), <span class="co"># Durchschnitt aller 3 Gruppen</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, .<span class="dv">5</span>, .<span class="dv">5</span>),                     <span class="co"># Vergleich Control vs Mittel der beiden Interventions-Gruppen</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">0</span>, <span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>))                       <span class="co"># Vergleich Sprache vs MINT</span></span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>contrasts.CvsExp <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">t</span>(mat))[, <span class="sc">-</span><span class="dv">1</span>]</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(contrasts.CvsExp) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;-C+MINT_Sprache&quot;</span>, <span class="st">&quot;-MINT+Sprache&quot;</span>)</span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="fu">contrasts</span>(data_all<span class="sc">$</span>intervention) <span class="ot">&lt;-</span> contrasts.CvsExp</span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="co"># or use this coding system?</span></span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="co"># my.helmert &lt;- matrix(c(-2 / 3, 1 / 3, 1 / 3, 0, -1 / 3, 1 / 3), ncol = 2)</span></span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="co"># colnames(my.helmert) &lt;- c(&quot;-C+MINT_Sprache&quot;, &quot;-MINT+Sprache&quot;)</span></span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="co"># contrasts(data$cond2) &lt;- my.helmert</span></span>
-<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="do">## define variables</span></span>
-<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>random_terms_lmer <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;(1 | code)&quot;</span>)</span>
-<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>groups <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;intervention&quot;</span>)</span>
-<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>outcomes <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;AILIT&quot;</span>, <span class="st">&quot;TK&quot;</span>, <span class="st">&quot;TPK&quot;</span>, <span class="st">&quot;TCK&quot;</span>, <span class="st">&quot;TPACKappl&quot;</span>, <span class="st">&quot;TPACKintrg&quot;</span>, <span class="st">&quot;TPACKgenai&quot;</span>, <span class="st">&quot;Ethics&quot;</span>, <span class="st">&quot;PU&quot;</span>)</span>
-<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>time <span class="ot">&lt;-</span> <span class="st">&quot;time&quot;</span></span>
-<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>controls <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;gender&quot;</span>, <span class="st">&quot;location&quot;</span>)</span>
-<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a><span class="co"># groups set as NA</span></span>
-<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>lmers_prepost_all <span class="ot">&lt;-</span></span>
-<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lapply</span>(outcomes, fit_lmer, groups, time, controls, random_terms_lmer, <span class="cn">NULL</span>, <span class="at">data =</span> data_all)</span>
-<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary_models</span>(lmers_prepost_all)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="do">## define contrast Control vs Exp1+Exp2 - vermutlich bessere version, da die Estimates &quot;stimmen&quot;</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>mat <span class="ot">&lt;-</span> <span class="fu">cbind</span>(</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">1</span> <span class="sc">/</span> <span class="dv">3</span>, <span class="dv">1</span> <span class="sc">/</span> <span class="dv">3</span>, <span class="dv">1</span> <span class="sc">/</span> <span class="dv">3</span>), <span class="co"># Durchschnitt aller 3 Gruppen</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, .<span class="dv">5</span>, .<span class="dv">5</span>), <span class="co"># Vergleich Control vs Mittel der beiden Interventions-Gruppen</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">0</span>, <span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>) <span class="co"># Vergleich Sprache vs MINT</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>contrasts.CvsExp <span class="ot">&lt;-</span> <span class="fu">solve</span>(<span class="fu">t</span>(mat))[, <span class="sc">-</span><span class="dv">1</span>]</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(contrasts.CvsExp) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;-C+MINT_Sprache&quot;</span>, <span class="st">&quot;-MINT+Sprache&quot;</span>)</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="fu">contrasts</span>(data<span class="sc">$</span>intervention) <span class="ot">&lt;-</span> contrasts.CvsExp</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="co"># or use this coding system?</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co"># my.helmert &lt;- matrix(c(-2 / 3, 1 / 3, 1 / 3, 0, -1 / 3, 1 / 3), ncol = 2)</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co"># colnames(my.helmert) &lt;- c(&quot;-C+MINT_Sprache&quot;, &quot;-MINT+Sprache&quot;)</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co"># contrasts(data$cond2) &lt;- my.helmert</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="do">## define variables</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>random_terms_lmer <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;(1 | code)&quot;</span>)</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>groups <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;intervention&quot;</span>)</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>outcomes <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;AILIT&quot;</span>,</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;AILITWolke&quot;</span>,</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;AILITShort&quot;</span>,</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TK&quot;</span>,</span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPK&quot;</span>,</span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TCK&quot;</span>,</span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACKknow&quot;</span>,</span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACKcomp&quot;</span>,</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TPACKgenai&quot;</span>,</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Ethics&quot;</span>,</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;PU&quot;</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>time <span class="ot">&lt;-</span> <span class="st">&quot;time&quot;</span></span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>controls <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;gender&quot;</span>, <span class="st">&quot;location&quot;</span>)</span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a><span class="co"># groups set as NA</span></span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>lmers_prepost_all <span class="ot">&lt;-</span></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lapply</span>(</span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>    outcomes,</span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>    fit_lmer,</span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>    groups,</span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>    time,</span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>    controls,</span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>    random_terms_lmer,</span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>    <span class="cn">NULL</span>,</span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> data</span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary_models</span>(lmers_prepost_all)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-striped table-condensed table-hover caption-top table-sm small" data-quarto-postprocess="true">
 <colgroup>
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 2%">
+<col style="width: 2%">
 <col style="width: 2%">
 <col style="width: 2%">
 <col style="width: 2%">
@@ -4183,6 +4409,12 @@ border: 0;
 AILIT
 </div></th>
 <th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+AILITWolke
+</div></th>
+<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+AILITShort
+</div></th>
+<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
 TK
 </div></th>
 <th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
@@ -4192,10 +4424,10 @@ TPK
 TCK
 </div></th>
 <th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-TPACKappl
+TPACKknow
 </div></th>
 <th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-TPACKintrg
+TPACKcomp
 </div></th>
 <th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
 TPACKgenai
@@ -4245,6 +4477,14 @@ PU
 <th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
 <th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
 <th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
 </tr>
 </thead>
 <tbody>
@@ -4253,6 +4493,14 @@ PU
 <td style="text-align: center;">17.65***</td>
 <td style="text-align: center;">3.74</td>
 <td style="text-align: center;">4.72</td>
+<td style="text-align: center;">&lt;0.001</td>
+<td style="text-align: center;">9.26***</td>
+<td style="text-align: center;">2.00</td>
+<td style="text-align: center;">4.62</td>
+<td style="text-align: center;">&lt;0.001</td>
+<td style="text-align: center;">8.05***</td>
+<td style="text-align: center;">1.93</td>
+<td style="text-align: center;">4.17</td>
 <td style="text-align: center;">&lt;0.001</td>
 <td style="text-align: center;">3.65***</td>
 <td style="text-align: center;">0.80</td>
@@ -4266,14 +4514,14 @@ PU
 <td style="text-align: center;">0.73</td>
 <td style="text-align: center;">4.65</td>
 <td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">2.68***</td>
-<td style="text-align: center;">0.78</td>
-<td style="text-align: center;">3.44</td>
-<td style="text-align: center;">&lt;0.001</td>
 <td style="text-align: center;">2.49**</td>
 <td style="text-align: center;">0.79</td>
 <td style="text-align: center;">3.16</td>
 <td style="text-align: center;">0.002</td>
+<td style="text-align: center;">2.68***</td>
+<td style="text-align: center;">0.78</td>
+<td style="text-align: center;">3.44</td>
+<td style="text-align: center;">&lt;0.001</td>
 <td style="text-align: center;">2.52**</td>
 <td style="text-align: center;">0.89</td>
 <td style="text-align: center;">2.83</td>
@@ -4293,6 +4541,14 @@ PU
 <td style="text-align: center;">1.13</td>
 <td style="text-align: center;">1.17</td>
 <td style="text-align: center;">0.242</td>
+<td style="text-align: center;">0.76</td>
+<td style="text-align: center;">0.58</td>
+<td style="text-align: center;">1.31</td>
+<td style="text-align: center;">0.193</td>
+<td style="text-align: center;">0.38</td>
+<td style="text-align: center;">0.56</td>
+<td style="text-align: center;">0.68</td>
+<td style="text-align: center;">0.501</td>
 <td style="text-align: center;">-0.22</td>
 <td style="text-align: center;">0.24</td>
 <td style="text-align: center;">-0.90</td>
@@ -4305,14 +4561,14 @@ PU
 <td style="text-align: center;">0.21</td>
 <td style="text-align: center;">0.09</td>
 <td style="text-align: center;">0.930</td>
-<td style="text-align: center;">-0.32</td>
-<td style="text-align: center;">0.23</td>
-<td style="text-align: center;">-1.41</td>
-<td style="text-align: center;">0.159</td>
 <td style="text-align: center;">-0.15</td>
 <td style="text-align: center;">0.23</td>
 <td style="text-align: center;">-0.63</td>
 <td style="text-align: center;">0.527</td>
+<td style="text-align: center;">-0.32</td>
+<td style="text-align: center;">0.23</td>
+<td style="text-align: center;">-1.41</td>
+<td style="text-align: center;">0.159</td>
 <td style="text-align: center;">-0.25</td>
 <td style="text-align: center;">0.26</td>
 <td style="text-align: center;">-0.98</td>
@@ -4332,6 +4588,14 @@ PU
 <td style="text-align: center;">1.08</td>
 <td style="text-align: center;">-0.65</td>
 <td style="text-align: center;">0.517</td>
+<td style="text-align: center;">-0.14</td>
+<td style="text-align: center;">0.56</td>
+<td style="text-align: center;">-0.25</td>
+<td style="text-align: center;">0.806</td>
+<td style="text-align: center;">-0.58</td>
+<td style="text-align: center;">0.54</td>
+<td style="text-align: center;">-1.08</td>
+<td style="text-align: center;">0.282</td>
 <td style="text-align: center;">-0.23</td>
 <td style="text-align: center;">0.24</td>
 <td style="text-align: center;">-0.97</td>
@@ -4344,14 +4608,14 @@ PU
 <td style="text-align: center;">0.20</td>
 <td style="text-align: center;">-0.73</td>
 <td style="text-align: center;">0.470</td>
-<td style="text-align: center;">-0.23</td>
-<td style="text-align: center;">0.22</td>
-<td style="text-align: center;">-1.02</td>
-<td style="text-align: center;">0.309</td>
 <td style="text-align: center;">-0.21</td>
 <td style="text-align: center;">0.22</td>
 <td style="text-align: center;">-0.96</td>
 <td style="text-align: center;">0.339</td>
+<td style="text-align: center;">-0.23</td>
+<td style="text-align: center;">0.22</td>
+<td style="text-align: center;">-1.02</td>
+<td style="text-align: center;">0.309</td>
 <td style="text-align: center;">-0.10</td>
 <td style="text-align: center;">0.25</td>
 <td style="text-align: center;">-0.41</td>
@@ -4371,6 +4635,14 @@ PU
 <td style="text-align: center;">0.43</td>
 <td style="text-align: center;">2.07</td>
 <td style="text-align: center;">0.040</td>
+<td style="text-align: center;">0.38</td>
+<td style="text-align: center;">0.25</td>
+<td style="text-align: center;">1.50</td>
+<td style="text-align: center;">0.136</td>
+<td style="text-align: center;">1.19***</td>
+<td style="text-align: center;">0.25</td>
+<td style="text-align: center;">4.76</td>
+<td style="text-align: center;">&lt;0.001</td>
 <td style="text-align: center;">0.68***</td>
 <td style="text-align: center;">0.09</td>
 <td style="text-align: center;">7.63</td>
@@ -4383,13 +4655,13 @@ PU
 <td style="text-align: center;">0.09</td>
 <td style="text-align: center;">7.76</td>
 <td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.13***</td>
-<td style="text-align: center;">0.09</td>
-<td style="text-align: center;">12.12</td>
-<td style="text-align: center;">&lt;0.001</td>
 <td style="text-align: center;">1.06***</td>
 <td style="text-align: center;">0.10</td>
 <td style="text-align: center;">11.00</td>
+<td style="text-align: center;">&lt;0.001</td>
+<td style="text-align: center;">1.13***</td>
+<td style="text-align: center;">0.09</td>
+<td style="text-align: center;">12.12</td>
 <td style="text-align: center;">&lt;0.001</td>
 <td style="text-align: center;">1.15***</td>
 <td style="text-align: center;">0.12</td>
@@ -4410,6 +4682,14 @@ PU
 <td style="text-align: center;">0.09</td>
 <td style="text-align: center;">0.52</td>
 <td style="text-align: center;">0.607</td>
+<td style="text-align: center;">0.02</td>
+<td style="text-align: center;">0.04</td>
+<td style="text-align: center;">0.44</td>
+<td style="text-align: center;">0.661</td>
+<td style="text-align: center;">-0.01</td>
+<td style="text-align: center;">0.04</td>
+<td style="text-align: center;">-0.22</td>
+<td style="text-align: center;">0.827</td>
 <td style="text-align: center;">-0.01</td>
 <td style="text-align: center;">0.02</td>
 <td style="text-align: center;">-0.41</td>
@@ -4422,14 +4702,14 @@ PU
 <td style="text-align: center;">0.02</td>
 <td style="text-align: center;">-0.09</td>
 <td style="text-align: center;">0.927</td>
-<td style="text-align: center;">0.01</td>
-<td style="text-align: center;">0.02</td>
-<td style="text-align: center;">0.59</td>
-<td style="text-align: center;">0.553</td>
 <td style="text-align: center;">0.00</td>
 <td style="text-align: center;">0.02</td>
 <td style="text-align: center;">0.26</td>
 <td style="text-align: center;">0.795</td>
+<td style="text-align: center;">0.01</td>
+<td style="text-align: center;">0.02</td>
+<td style="text-align: center;">0.59</td>
+<td style="text-align: center;">0.553</td>
 <td style="text-align: center;">0.00</td>
 <td style="text-align: center;">0.02</td>
 <td style="text-align: center;">0.25</td>
@@ -4449,6 +4729,14 @@ PU
 <td style="text-align: center;">3.21</td>
 <td style="text-align: center;">-1.62</td>
 <td style="text-align: center;">0.106</td>
+<td style="text-align: center;">-3.13+</td>
+<td style="text-align: center;">1.78</td>
+<td style="text-align: center;">-1.76</td>
+<td style="text-align: center;">0.081</td>
+<td style="text-align: center;">-3.36+</td>
+<td style="text-align: center;">1.72</td>
+<td style="text-align: center;">-1.95</td>
+<td style="text-align: center;">0.053</td>
 <td style="text-align: center;">-0.04</td>
 <td style="text-align: center;">0.68</td>
 <td style="text-align: center;">-0.06</td>
@@ -4461,14 +4749,14 @@ PU
 <td style="text-align: center;">0.65</td>
 <td style="text-align: center;">-0.53</td>
 <td style="text-align: center;">0.598</td>
-<td style="text-align: center;">-0.62</td>
-<td style="text-align: center;">0.68</td>
-<td style="text-align: center;">-0.91</td>
-<td style="text-align: center;">0.363</td>
 <td style="text-align: center;">-0.05</td>
 <td style="text-align: center;">0.69</td>
 <td style="text-align: center;">-0.07</td>
 <td style="text-align: center;">0.947</td>
+<td style="text-align: center;">-0.62</td>
+<td style="text-align: center;">0.68</td>
+<td style="text-align: center;">-0.91</td>
+<td style="text-align: center;">0.363</td>
 <td style="text-align: center;">-0.35</td>
 <td style="text-align: center;">0.80</td>
 <td style="text-align: center;">-0.44</td>
@@ -4488,6 +4776,14 @@ PU
 <td style="text-align: center;">3.15</td>
 <td style="text-align: center;">-2.08</td>
 <td style="text-align: center;">0.039</td>
+<td style="text-align: center;">-2.96+</td>
+<td style="text-align: center;">1.76</td>
+<td style="text-align: center;">-1.68</td>
+<td style="text-align: center;">0.094</td>
+<td style="text-align: center;">-3.40*</td>
+<td style="text-align: center;">1.70</td>
+<td style="text-align: center;">-2.00</td>
+<td style="text-align: center;">0.048</td>
 <td style="text-align: center;">-0.47</td>
 <td style="text-align: center;">0.67</td>
 <td style="text-align: center;">-0.70</td>
@@ -4500,14 +4796,14 @@ PU
 <td style="text-align: center;">0.64</td>
 <td style="text-align: center;">-1.08</td>
 <td style="text-align: center;">0.281</td>
-<td style="text-align: center;">-0.89</td>
-<td style="text-align: center;">0.67</td>
-<td style="text-align: center;">-1.34</td>
-<td style="text-align: center;">0.183</td>
 <td style="text-align: center;">-0.56</td>
 <td style="text-align: center;">0.68</td>
 <td style="text-align: center;">-0.81</td>
 <td style="text-align: center;">0.417</td>
+<td style="text-align: center;">-0.89</td>
+<td style="text-align: center;">0.67</td>
+<td style="text-align: center;">-1.34</td>
+<td style="text-align: center;">0.183</td>
 <td style="text-align: center;">-0.74</td>
 <td style="text-align: center;">0.79</td>
 <td style="text-align: center;">-0.94</td>
@@ -4527,6 +4823,14 @@ PU
 <td style="text-align: center;">0.98</td>
 <td style="text-align: center;">0.58</td>
 <td style="text-align: center;">0.563</td>
+<td style="text-align: center;">0.29</td>
+<td style="text-align: center;">0.49</td>
+<td style="text-align: center;">0.60</td>
+<td style="text-align: center;">0.548</td>
+<td style="text-align: center;">-0.18</td>
+<td style="text-align: center;">0.46</td>
+<td style="text-align: center;">-0.38</td>
+<td style="text-align: center;">0.703</td>
 <td style="text-align: center;">0.28</td>
 <td style="text-align: center;">0.21</td>
 <td style="text-align: center;">1.30</td>
@@ -4539,14 +4843,14 @@ PU
 <td style="text-align: center;">0.18</td>
 <td style="text-align: center;">2.55</td>
 <td style="text-align: center;">0.012</td>
-<td style="text-align: center;">0.34+</td>
-<td style="text-align: center;">0.20</td>
-<td style="text-align: center;">1.75</td>
-<td style="text-align: center;">0.082</td>
 <td style="text-align: center;">0.49*</td>
 <td style="text-align: center;">0.20</td>
 <td style="text-align: center;">2.48</td>
 <td style="text-align: center;">0.014</td>
+<td style="text-align: center;">0.34+</td>
+<td style="text-align: center;">0.20</td>
+<td style="text-align: center;">1.75</td>
+<td style="text-align: center;">0.082</td>
 <td style="text-align: center;">0.38+</td>
 <td style="text-align: center;">0.21</td>
 <td style="text-align: center;">1.78</td>
@@ -4566,6 +4870,14 @@ PU
 <td style="text-align: center;">0.97</td>
 <td style="text-align: center;">1.38</td>
 <td style="text-align: center;">0.171</td>
+<td style="text-align: center;">0.76</td>
+<td style="text-align: center;">0.57</td>
+<td style="text-align: center;">1.32</td>
+<td style="text-align: center;">0.189</td>
+<td style="text-align: center;">0.92</td>
+<td style="text-align: center;">0.56</td>
+<td style="text-align: center;">1.64</td>
+<td style="text-align: center;">0.104</td>
 <td style="text-align: center;">1.16***</td>
 <td style="text-align: center;">0.20</td>
 <td style="text-align: center;">5.74</td>
@@ -4578,13 +4890,13 @@ PU
 <td style="text-align: center;">0.21</td>
 <td style="text-align: center;">4.79</td>
 <td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.47***</td>
-<td style="text-align: center;">0.21</td>
-<td style="text-align: center;">6.97</td>
-<td style="text-align: center;">&lt;0.001</td>
 <td style="text-align: center;">1.37***</td>
 <td style="text-align: center;">0.22</td>
 <td style="text-align: center;">6.29</td>
+<td style="text-align: center;">&lt;0.001</td>
+<td style="text-align: center;">1.47***</td>
+<td style="text-align: center;">0.21</td>
+<td style="text-align: center;">6.97</td>
 <td style="text-align: center;">&lt;0.001</td>
 <td style="text-align: center;">1.36***</td>
 <td style="text-align: center;">0.26</td>
@@ -4605,6 +4917,14 @@ PU
 <td style="text-align: center;">0.98</td>
 <td style="text-align: center;">-0.69</td>
 <td style="text-align: center;">0.491</td>
+<td style="text-align: center;">-0.36</td>
+<td style="text-align: center;">0.58</td>
+<td style="text-align: center;">-0.62</td>
+<td style="text-align: center;">0.535</td>
+<td style="text-align: center;">-0.32</td>
+<td style="text-align: center;">0.57</td>
+<td style="text-align: center;">-0.56</td>
+<td style="text-align: center;">0.580</td>
 <td style="text-align: center;">0.19</td>
 <td style="text-align: center;">0.20</td>
 <td style="text-align: center;">0.95</td>
@@ -4617,14 +4937,14 @@ PU
 <td style="text-align: center;">0.21</td>
 <td style="text-align: center;">-0.34</td>
 <td style="text-align: center;">0.736</td>
-<td style="text-align: center;">0.13</td>
-<td style="text-align: center;">0.21</td>
-<td style="text-align: center;">0.59</td>
-<td style="text-align: center;">0.556</td>
 <td style="text-align: center;">0.07</td>
 <td style="text-align: center;">0.22</td>
 <td style="text-align: center;">0.33</td>
 <td style="text-align: center;">0.743</td>
+<td style="text-align: center;">0.13</td>
+<td style="text-align: center;">0.21</td>
+<td style="text-align: center;">0.59</td>
+<td style="text-align: center;">0.556</td>
 <td style="text-align: center;">0.03</td>
 <td style="text-align: center;">0.27</td>
 <td style="text-align: center;">0.13</td>
@@ -4644,6 +4964,14 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
+<td style="text-align: center;">0.94</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.85</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
 <td style="text-align: center;">0.52</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4656,11 +4984,11 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
-<td style="text-align: center;">0.43</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
 <td style="text-align: center;">0.41</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.43</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4683,6 +5011,14 @@ PU
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;">1.51</td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;">1.48</td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;">0.53</td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
@@ -4695,11 +5031,11 @@ PU
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.55</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;">0.57</td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
+<td style="text-align: center; box-shadow: 0px 1.5px;">0.55</td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
 <td style="text-align: center; box-shadow: 0px 1.5px;"></td>
@@ -4754,10 +5090,26 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
+<td style="text-align: center;">152</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">152</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">R2 Marg.</td>
 <td style="text-align: center;">0.156</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.101</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.216</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4773,11 +5125,11 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
-<td style="text-align: center;">0.534</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
 <td style="text-align: center;">0.536</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.534</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4800,6 +5152,14 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
+<td style="text-align: center;">0.349</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.410</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
 <td style="text-align: center;">0.667</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4812,11 +5172,11 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
-<td style="text-align: center;">0.708</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
 <td style="text-align: center;">0.694</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.708</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4839,6 +5199,14 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
+<td style="text-align: center;">617.0</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">606.6</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
 <td style="text-align: center;">355.6</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4851,11 +5219,11 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
-<td style="text-align: center;">346.9</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
 <td style="text-align: center;">351.1</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">346.9</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4878,6 +5246,14 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
+<td style="text-align: center;">653.3</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">642.9</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
 <td style="text-align: center;">391.9</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4890,11 +5266,11 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
-<td style="text-align: center;">383.2</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
 <td style="text-align: center;">387.4</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">383.2</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4917,6 +5293,14 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
+<td style="text-align: center;">0.3</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.2</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
 <td style="text-align: center;">0.5</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4929,11 +5313,11 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
-<td style="text-align: center;">0.4</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
 <td style="text-align: center;">0.3</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.4</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4956,6 +5340,14 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
+<td style="text-align: center;">1.30</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">1.28</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
 <td style="text-align: center;">0.42</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4968,11 +5360,11 @@ PU
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
-<td style="text-align: center;">0.46</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
 <td style="text-align: center;">0.48</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">0.46</td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
 <td style="text-align: center;"></td>
@@ -4994,676 +5386,294 @@ PU
 
 
 </div>
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ---------- klappt nich lol</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># data_sg &lt;- data %&gt;%</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co">#   group_by(code) %&gt;%</span></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co">#   filter(all(c(&quot;pre&quot;, &quot;post&quot;) %in% time)) %&gt;%</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co">#   filter(location==&quot;PH Schwäbisch Gmünd&quot;) %&gt;%</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">#   ungroup()</span></span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co"># controls &lt;- c(&quot;age&quot;, &quot;gender&quot;)</span></span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co"># lmers_prepost_sg &lt;-</span></span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co">#   lapply(outcomes, lmer, NULL, time, controls, random_terms_lmer, NULL, data = data_sg)</span></span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co"># modelsummary_models(lmers_prepost_sg)</span></span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a><span class="co"># mm &lt;- lmer(PU ~ time*intervention + age + gender + (1 | code), data = data %&gt;% filter(all(c(&quot;pre&quot;, &quot;post&quot;) %in% time)))</span></span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a><span class="co"># mm %&gt;% summary(corr=F)</span></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="co"># emmeans(lmers_prepost_all[[1]], ~ intervention*time|location, lmer.df = &quot;satterthwaite&quot;) %&gt;% contrast(interaction = &quot;pairwise&quot;, adjust=&quot;none&quot;)</span></span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="do">#### SPRACHE ####</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># nur daten berücksichtigen die pre und post test haben</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>data_sprache <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(group <span class="sc">==</span> <span class="st">&quot;sprache&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(code) <span class="sc">%&gt;%</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">all</span>(<span class="fu">c</span>(<span class="st">&quot;pre&quot;</span>, <span class="st">&quot;post&quot;</span>) <span class="sc">%in%</span> time)) <span class="sc">%&gt;%</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="do">## define variables</span></span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>random_terms_lmer <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;(1 | code)&quot;</span>)</span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># groups &lt;- c(&quot;intervention&quot;) </span></span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>outcomes <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;AILIT&quot;</span>, <span class="st">&quot;TK&quot;</span>, <span class="st">&quot;TPK&quot;</span>, <span class="st">&quot;TCK&quot;</span>, <span class="st">&quot;TPACKappl&quot;</span>, <span class="st">&quot;TPACKintrg&quot;</span>, <span class="st">&quot;TPACKgenai&quot;</span>, <span class="st">&quot;Ethics&quot;</span>, <span class="st">&quot;PU&quot;</span>)</span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>time <span class="ot">&lt;-</span> <span class="st">&quot;time&quot;</span></span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>controls <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;gender&quot;</span>)</span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="co"># groups set as NA</span></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>lmers_prepost <span class="ot">&lt;-</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lapply</span>(outcomes, fit_lmer, <span class="cn">NULL</span>, time, controls, random_terms_lmer, <span class="cn">NULL</span>, <span class="at">data=</span> data_sprache)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>boundary (singular) fit: see help(&#39;isSingular&#39;)</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning in FUN(X[[i]], ...): Model for Ethics is singular. The simplest random
-structure lead to a singular model.</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary_models</span>(lmers_prepost)</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output-display">
-<table class="table table-striped table-condensed table-hover caption-top table-sm small" data-quarto-postprocess="true">
-<colgroup>
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-<col style="width: 2%">
-</colgroup>
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th" style="text-align: left; empty-cells: hide; border-bottom: hidden;"></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-AILIT
-</div></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-TK
-</div></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-TPK
-</div></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-TCK
-</div></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-TPACKappl
-</div></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-TPACKintrg
-</div></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-TPACKgenai
-</div></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-Ethics
-</div></th>
-<th colspan="4" data-quarto-table-cell-role="th" style="text-align: center; border-bottom: hidden; padding-bottom: 0; padding-left: 3px; padding-right: 3px;"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
-PU
-</div></th>
-</tr>
-<tr class="odd">
-<th style="text-align: left;" data-quarto-table-cell-role="th"></th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">b</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">SE</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">t</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">p</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">(Intercept)</td>
-<td style="text-align: center;">13.31**</td>
-<td style="text-align: center;">4.72</td>
-<td style="text-align: center;">2.82</td>
-<td style="text-align: center;">0.008</td>
-<td style="text-align: center;">4.14***</td>
-<td style="text-align: center;">0.90</td>
-<td style="text-align: center;">4.63</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.86*</td>
-<td style="text-align: center;">0.74</td>
-<td style="text-align: center;">2.52</td>
-<td style="text-align: center;">0.016</td>
-<td style="text-align: center;">3.93***</td>
-<td style="text-align: center;">0.67</td>
-<td style="text-align: center;">5.84</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.99*</td>
-<td style="text-align: center;">0.96</td>
-<td style="text-align: center;">2.08</td>
-<td style="text-align: center;">0.044</td>
-<td style="text-align: center;">3.26***</td>
-<td style="text-align: center;">0.88</td>
-<td style="text-align: center;">3.69</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">2.59*</td>
-<td style="text-align: center;">1.07</td>
-<td style="text-align: center;">2.43</td>
-<td style="text-align: center;">0.020</td>
-<td style="text-align: center;">2.48**</td>
-<td style="text-align: center;">0.70</td>
-<td style="text-align: center;">3.53</td>
-<td style="text-align: center;">0.001</td>
-<td style="text-align: center;">5.55***</td>
-<td style="text-align: center;">0.69</td>
-<td style="text-align: center;">8.03</td>
-<td style="text-align: center;">&lt;0.001</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">timepost</td>
-<td style="text-align: center;">1.09*</td>
-<td style="text-align: center;">0.52</td>
-<td style="text-align: center;">2.10</td>
-<td style="text-align: center;">0.043</td>
-<td style="text-align: center;">1.19***</td>
-<td style="text-align: center;">0.17</td>
-<td style="text-align: center;">6.83</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.47***</td>
-<td style="text-align: center;">0.14</td>
-<td style="text-align: center;">10.53</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.04***</td>
-<td style="text-align: center;">0.16</td>
-<td style="text-align: center;">6.48</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.70***</td>
-<td style="text-align: center;">0.16</td>
-<td style="text-align: center;">10.95</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.58***</td>
-<td style="text-align: center;">0.16</td>
-<td style="text-align: center;">10.14</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.64***</td>
-<td style="text-align: center;">0.22</td>
-<td style="text-align: center;">7.38</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">1.77***</td>
-<td style="text-align: center;">0.18</td>
-<td style="text-align: center;">9.64</td>
-<td style="text-align: center;">&lt;0.001</td>
-<td style="text-align: center;">0.08</td>
-<td style="text-align: center;">0.16</td>
-<td style="text-align: center;">0.51</td>
-<td style="text-align: center;">0.614</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">age</td>
-<td style="text-align: center;">-0.00</td>
-<td style="text-align: center;">0.18</td>
-<td style="text-align: center;">-0.02</td>
-<td style="text-align: center;">0.981</td>
-<td style="text-align: center;">-0.03</td>
-<td style="text-align: center;">0.03</td>
-<td style="text-align: center;">-0.81</td>
-<td style="text-align: center;">0.424</td>
-<td style="text-align: center;">0.02</td>
-<td style="text-align: center;">0.03</td>
-<td style="text-align: center;">0.67</td>
-<td style="text-align: center;">0.505</td>
-<td style="text-align: center;">-0.03</td>
-<td style="text-align: center;">0.03</td>
-<td style="text-align: center;">-1.33</td>
-<td style="text-align: center;">0.191</td>
-<td style="text-align: center;">0.01</td>
-<td style="text-align: center;">0.04</td>
-<td style="text-align: center;">0.30</td>
-<td style="text-align: center;">0.764</td>
-<td style="text-align: center;">-0.03</td>
-<td style="text-align: center;">0.03</td>
-<td style="text-align: center;">-0.78</td>
-<td style="text-align: center;">0.442</td>
-<td style="text-align: center;">-0.01</td>
-<td style="text-align: center;">0.04</td>
-<td style="text-align: center;">-0.16</td>
-<td style="text-align: center;">0.874</td>
-<td style="text-align: center;">-0.02</td>
-<td style="text-align: center;">0.03</td>
-<td style="text-align: center;">-0.76</td>
-<td style="text-align: center;">0.450</td>
-<td style="text-align: center;">-0.04</td>
-<td style="text-align: center;">0.03</td>
-<td style="text-align: center;">-1.62</td>
-<td style="text-align: center;">0.114</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">genderWeiblich</td>
-<td style="text-align: center;">-0.75</td>
-<td style="text-align: center;">1.64</td>
-<td style="text-align: center;">-0.46</td>
-<td style="text-align: center;">0.651</td>
-<td style="text-align: center;">-0.68*</td>
-<td style="text-align: center;">0.31</td>
-<td style="text-align: center;">-2.21</td>
-<td style="text-align: center;">0.033</td>
-<td style="text-align: center;">-0.24</td>
-<td style="text-align: center;">0.25</td>
-<td style="text-align: center;">-0.93</td>
-<td style="text-align: center;">0.358</td>
-<td style="text-align: center;">-0.47*</td>
-<td style="text-align: center;">0.23</td>
-<td style="text-align: center;">-2.06</td>
-<td style="text-align: center;">0.047</td>
-<td style="text-align: center;">-0.49</td>
-<td style="text-align: center;">0.33</td>
-<td style="text-align: center;">-1.48</td>
-<td style="text-align: center;">0.146</td>
-<td style="text-align: center;">-0.73*</td>
-<td style="text-align: center;">0.30</td>
-<td style="text-align: center;">-2.43</td>
-<td style="text-align: center;">0.020</td>
-<td style="text-align: center;">-0.72+</td>
-<td style="text-align: center;">0.36</td>
-<td style="text-align: center;">-1.99</td>
-<td style="text-align: center;">0.054</td>
-<td style="text-align: center;">-0.04</td>
-<td style="text-align: center;">0.24</td>
-<td style="text-align: center;">-0.18</td>
-<td style="text-align: center;">0.856</td>
-<td style="text-align: center;">-0.66**</td>
-<td style="text-align: center;">0.24</td>
-<td style="text-align: center;">-2.81</td>
-<td style="text-align: center;">0.008</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">SD (Intercept code)</td>
-<td style="text-align: center;">2.69</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.37</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.32</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.17</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.47</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.41</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.40</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.00</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.19</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-</tr>
-<tr class="even">
-<td style="text-align: left; box-shadow: 0px 1.5px;">SD (Observations)</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">1.72</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.58</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.46</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.53</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.51</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.52</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.73</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.61</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;">0.53</td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-<td style="text-align: center; box-shadow: 0px 1.5px;"></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Num.Obs.</td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">R2 Marg.</td>
-<td style="text-align: center;">0.037</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.483</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.645</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.508</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.618</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.628</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.522</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.684</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.229</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">R2 Cond.</td>
-<td style="text-align: center;">0.722</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.635</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.758</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.555</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.791</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.770</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.632</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.319</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">AIC</td>
-<td style="text-align: center;">216.9</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">107.2</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">90.8</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">92.7</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">105.0</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">102.2</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">124.0</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">100.1</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">94.0</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">BIC</td>
-<td style="text-align: center;">227.6</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">118.0</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">101.5</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">103.4</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">115.7</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">112.9</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">134.7</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">110.8</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">104.7</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">ICC</td>
-<td style="text-align: center;">0.7</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.3</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.3</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.1</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.5</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.4</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.2</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.1</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">RMSE</td>
-<td style="text-align: center;">1.27</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.49</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.39</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.48</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.41</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.42</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.64</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.58</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;">0.48</td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-<td style="text-align: center;"></td>
-</tr>
-</tbody>
-</table>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="do">## look at MSD and cronbach alphas for outcomes for each intervention group</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="co"># filter out pre data and relevant lists</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>data_pre <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span> <span class="fu">filter</span>(time <span class="sc">==</span> <span class="st">&quot;pre&quot;</span>)</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="fu">lapply</span>(list_items_i_tpack, <span class="cf">function</span>(x) {</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">alpha</span>(data_pre[, x])</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="In die Zwischenablage kopieren" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$TK
 
+Reliability analysis   
+Call: alpha(x = data_pre[, x])
 
+  raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
+       0.9       0.9    0.89      0.65 9.3 0.018  3.3 0.87     0.67
+
+    95% confidence boundaries 
+         lower alpha upper
+Feldt     0.86   0.9  0.93
+Duhachek  0.87   0.9  0.94
+
+ Reliability if an item is dropped:
+        raw_alpha std.alpha G6(smc) average_r S/N alpha se  var.r med.r
+TP01_01      0.87      0.87    0.85      0.63 6.9    0.024 0.0050  0.64
+TP01_02      0.87      0.88    0.85      0.64 7.0    0.023 0.0048  0.65
+TP01_03      0.89      0.89    0.87      0.68 8.5    0.020 0.0023  0.68
+TP01_04      0.88      0.88    0.86      0.65 7.5    0.022 0.0050  0.67
+TP01_05      0.88      0.88    0.86      0.65 7.5    0.023 0.0030  0.65
+
+ Item statistics 
+         n raw.r std.r r.cor r.drop mean   sd
+TP01_01 76  0.87  0.87  0.84   0.80  3.2 0.93
+TP01_02 76  0.87  0.87  0.83   0.78  3.4 1.05
+TP01_03 76  0.80  0.81  0.74   0.70  3.8 0.95
+TP01_04 76  0.85  0.85  0.80   0.75  3.1 1.12
+TP01_05 76  0.85  0.85  0.80   0.76  2.9 1.06
+
+Non missing response frequency for each item
+           1    2    3    4    5 miss
+TP01_01 0.03 0.18 0.41 0.30 0.08    0
+TP01_02 0.07 0.09 0.41 0.29 0.14    0
+TP01_03 0.01 0.09 0.21 0.45 0.24    0
+TP01_04 0.05 0.29 0.26 0.28 0.12    0
+TP01_05 0.08 0.33 0.30 0.22 0.07    0
+
+$TPK
+
+Reliability analysis   
+Call: alpha(x = data_pre[, x])
+
+  raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
+      0.85      0.85    0.86      0.46 5.9 0.026  2.6 0.77     0.44
+
+    95% confidence boundaries 
+         lower alpha upper
+Feldt      0.8  0.85   0.9
+Duhachek   0.8  0.85   0.9
+
+ Reliability if an item is dropped:
+        raw_alpha std.alpha G6(smc) average_r S/N alpha se var.r med.r
+TP02_01      0.86      0.86    0.86      0.50 6.0    0.026 0.013  0.46
+TP02_02      0.84      0.84    0.85      0.47 5.4    0.028 0.023  0.45
+TP02_03      0.82      0.82    0.82      0.43 4.5    0.033 0.018  0.42
+TP02_04      0.82      0.82    0.83      0.43 4.6    0.032 0.020  0.42
+TP02_05      0.85      0.85    0.84      0.48 5.6    0.027 0.012  0.45
+TP02_06      0.82      0.83    0.82      0.44 4.7    0.031 0.021  0.42
+TP02_07      0.82      0.82    0.82      0.42 4.4    0.033 0.018  0.41
+
+ Item statistics 
+         n raw.r std.r r.cor r.drop mean   sd
+TP02_01 76  0.59  0.60  0.49   0.44  3.1 1.05
+TP02_02 76  0.68  0.68  0.59   0.55  2.8 1.05
+TP02_03 76  0.81  0.80  0.78   0.71  2.5 1.11
+TP02_04 76  0.79  0.79  0.75   0.70  2.2 1.03
+TP02_05 76  0.65  0.64  0.58   0.51  2.8 1.06
+TP02_06 76  0.77  0.77  0.74   0.67  2.7 1.08
+TP02_07 76  0.82  0.82  0.80   0.74  2.4 0.97
+
+Non missing response frequency for each item
+          -1    1    2    3    4    5 miss
+TP02_01 0.01 0.01 0.25 0.34 0.32 0.07    0
+TP02_02 0.01 0.08 0.26 0.42 0.18 0.04    0
+TP02_03 0.00 0.20 0.34 0.28 0.13 0.05    0
+TP02_04 0.00 0.28 0.39 0.21 0.09 0.03    0
+TP02_05 0.00 0.16 0.21 0.38 0.22 0.03    0
+TP02_06 0.01 0.13 0.25 0.38 0.21 0.01    0
+TP02_07 0.00 0.20 0.30 0.38 0.11 0.01    0
+
+$TCK
+
+Reliability analysis   
+Call: alpha(x = data_pre[, x])
+
+  raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
+      0.77      0.77    0.75       0.4 3.4 0.041    3 0.76     0.38
+
+    95% confidence boundaries 
+         lower alpha upper
+Feldt     0.68  0.77  0.84
+Duhachek  0.69  0.77  0.85
+
+ Reliability if an item is dropped:
+        raw_alpha std.alpha G6(smc) average_r S/N alpha se  var.r med.r
+TP03_01      0.71      0.71    0.67      0.38 2.4    0.054 0.0147  0.35
+TP03_02      0.71      0.71    0.66      0.38 2.4    0.054 0.0050  0.35
+TP03_03      0.77      0.77    0.72      0.45 3.3    0.042 0.0109  0.44
+TP03_04      0.70      0.70    0.66      0.37 2.4    0.056 0.0076  0.35
+TP03_05      0.75      0.75    0.72      0.43 3.1    0.046 0.0165  0.46
+
+ Item statistics 
+         n raw.r std.r r.cor r.drop mean   sd
+TP03_01 76  0.77  0.76  0.68   0.60  3.2 1.07
+TP03_02 76  0.78  0.76  0.70   0.60  2.7 1.15
+TP03_03 76  0.64  0.64  0.50   0.43  3.7 1.05
+TP03_04 76  0.78  0.78  0.72   0.63  2.4 1.05
+TP03_05 76  0.65  0.67  0.52   0.47  3.0 0.93
+
+Non missing response frequency for each item
+           1    2    3    4    5 miss
+TP03_01 0.04 0.24 0.28 0.33 0.12    0
+TP03_02 0.18 0.26 0.26 0.25 0.04    0
+TP03_03 0.04 0.08 0.25 0.38 0.25    0
+TP03_04 0.22 0.33 0.30 0.12 0.03    0
+TP03_05 0.05 0.20 0.46 0.24 0.05    0
+
+$TPACK_know
+
+Reliability analysis   
+Call: alpha(x = data_pre[, x])
+
+  raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
+      0.89      0.89    0.89      0.59 8.5 0.019  2.5 0.83     0.61
+
+    95% confidence boundaries 
+         lower alpha upper
+Feldt     0.85  0.89  0.92
+Duhachek  0.85  0.89  0.93
+
+ Reliability if an item is dropped:
+        raw_alpha std.alpha G6(smc) average_r S/N alpha se   var.r med.r
+TP04_04      0.86      0.87    0.85      0.57 6.6    0.025 0.00765  0.60
+TP04_05      0.87      0.88    0.86      0.59 7.2    0.023 0.00571  0.61
+TP04_06      0.88      0.88    0.87      0.59 7.3    0.022 0.00519  0.62
+TP04_07      0.86      0.87    0.85      0.57 6.6    0.025 0.00800  0.60
+TP04_08      0.87      0.87    0.86      0.58 6.8    0.024 0.00752  0.61
+TP04_15      0.89      0.89    0.87      0.62 8.1    0.020 0.00066  0.61
+
+ Item statistics 
+         n raw.r std.r r.cor r.drop mean   sd
+TP04_04 76  0.85  0.85  0.81   0.77  2.6 1.04
+TP04_05 76  0.80  0.80  0.75   0.70  2.4 1.06
+TP04_06 76  0.79  0.79  0.74   0.69  2.2 1.06
+TP04_07 76  0.85  0.84  0.81   0.77  2.8 1.07
+TP04_08 76  0.81  0.83  0.78   0.74  2.2 0.82
+TP04_15 76  0.75  0.74  0.68   0.63  2.5 1.13
+
+Non missing response frequency for each item
+          -1    1    2    3    4    5 miss
+TP04_04 0.00 0.17 0.29 0.33 0.20 0.01    0
+TP04_05 0.01 0.14 0.43 0.22 0.17 0.01    0
+TP04_06 0.00 0.26 0.43 0.17 0.09 0.04    0
+TP04_07 0.00 0.12 0.30 0.30 0.24 0.04    0
+TP04_08 0.00 0.20 0.45 0.30 0.05 0.00    0
+TP04_15 0.00 0.18 0.38 0.20 0.20 0.04    0
+
+$TPACK_comp
+
+Reliability analysis   
+Call: alpha(x = data_pre[, x])
+
+  raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
+      0.89      0.89    0.91      0.48 8.4 0.019  2.3 0.78     0.45
+
+    95% confidence boundaries 
+         lower alpha upper
+Feldt     0.84  0.89  0.92
+Duhachek  0.85  0.89  0.92
+
+ Reliability if an item is dropped:
+        raw_alpha std.alpha G6(smc) average_r S/N alpha se  var.r med.r
+TP04_01      0.87      0.88    0.89      0.48 7.4    0.022 0.0098  0.46
+TP04_02      0.87      0.88    0.88      0.48 7.4    0.022 0.0061  0.46
+TP04_03      0.87      0.88    0.89      0.48 7.3    0.022 0.0086  0.45
+TP04_09      0.87      0.88    0.89      0.48 7.3    0.023 0.0104  0.45
+TP04_10      0.87      0.88    0.89      0.48 7.3    0.023 0.0100  0.45
+TP04_11      0.89      0.89    0.90      0.50 8.0    0.020 0.0106  0.47
+TP04_12      0.87      0.88    0.89      0.48 7.5    0.022 0.0115  0.45
+TP04_13      0.88      0.89    0.90      0.50 8.0    0.021 0.0108  0.47
+TP04_14      0.87      0.88    0.89      0.48 7.4    0.022 0.0107  0.45
+
+ Item statistics 
+         n raw.r std.r r.cor r.drop mean   sd
+TP04_01 76  0.73  0.75  0.72   0.66  2.3 0.94
+TP04_02 76  0.73  0.74  0.73   0.65  2.3 1.00
+TP04_03 76  0.76  0.77  0.75   0.68  2.3 1.03
+TP04_09 76  0.77  0.76  0.73   0.69  2.8 1.19
+TP04_10 76  0.77  0.76  0.74   0.70  2.2 0.99
+TP04_11 76  0.72  0.67  0.61   0.58  1.8 1.56
+TP04_12 76  0.73  0.74  0.70   0.65  2.6 0.98
+TP04_13 76  0.65  0.67  0.61   0.57  2.0 0.88
+TP04_14 76  0.75  0.76  0.72   0.68  2.2 0.95
+
+Non missing response frequency for each item
+           1    2    3    4    5 miss
+TP04_01 0.21 0.43 0.25 0.09 0.01    0
+TP04_02 0.21 0.38 0.29 0.09 0.03    0
+TP04_03 0.26 0.34 0.26 0.12 0.01    0
+TP04_09 0.16 0.29 0.26 0.21 0.08    0
+TP04_10 0.24 0.43 0.22 0.08 0.03    0
+TP04_12 0.14 0.28 0.39 0.17 0.01    0
+TP04_13 0.28 0.50 0.16 0.05 0.01    0
+TP04_14 0.25 0.46 0.18 0.09 0.01    0
+
+$TPACK_genai
+
+Reliability analysis   
+Call: alpha(x = data_pre[, x])
+
+  raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
+      0.82      0.84    0.82      0.51 5.2 0.031  2.2 0.87     0.51
+
+    95% confidence boundaries 
+         lower alpha upper
+Feldt     0.75  0.82  0.88
+Duhachek  0.76  0.82  0.88
+
+ Reliability if an item is dropped:
+        raw_alpha std.alpha G6(smc) average_r S/N alpha se  var.r med.r
+TP04_09      0.77      0.80    0.77      0.50 4.0    0.041 0.0100  0.49
+TP04_10      0.75      0.78    0.73      0.47 3.5    0.043 0.0057  0.48
+TP04_11      0.82      0.82    0.79      0.53 4.6    0.033 0.0113  0.54
+TP04_13      0.81      0.84    0.80      0.56 5.1    0.034 0.0060  0.56
+TP04_14      0.77      0.79    0.75      0.48 3.7    0.040 0.0104  0.47
+
+ Item statistics 
+         n raw.r std.r r.cor r.drop mean   sd
+TP04_09 76  0.80  0.79  0.73   0.66  2.8 1.19
+TP04_10 76  0.83  0.84  0.81   0.74  2.2 0.99
+TP04_11 76  0.80  0.74  0.64   0.59  1.8 1.56
+TP04_13 76  0.66  0.70  0.57   0.52  2.0 0.88
+TP04_14 76  0.79  0.82  0.77   0.68  2.2 0.95
+
+Non missing response frequency for each item
+           1    2    3    4    5 miss
+TP04_09 0.16 0.29 0.26 0.21 0.08    0
+TP04_10 0.24 0.43 0.22 0.08 0.03    0
+TP04_13 0.28 0.50 0.16 0.05 0.01    0
+TP04_14 0.25 0.46 0.18 0.09 0.01    0
+
+$Ethics
+
+Reliability analysis   
+Call: alpha(x = data_pre[, x])
+
+  raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
+      0.86      0.86    0.87      0.51 6.3 0.025  2.4 0.85      0.5
+
+    95% confidence boundaries 
+         lower alpha upper
+Feldt     0.81  0.86  0.91
+Duhachek  0.81  0.86  0.91
+
+ Reliability if an item is dropped:
+        raw_alpha std.alpha G6(smc) average_r S/N alpha se var.r med.r
+TP05_01      0.85      0.85    0.84      0.53 5.6    0.028 0.011  0.54
+TP05_02      0.84      0.84    0.82      0.50 5.1    0.030 0.015  0.51
+TP05_03      0.83      0.83    0.84      0.49 4.8    0.032 0.018  0.46
+TP05_04      0.85      0.85    0.85      0.53 5.7    0.028 0.015  0.53
+TP05_05      0.82      0.82    0.81      0.47 4.5    0.033 0.014  0.45
+TP05_06      0.85      0.85    0.85      0.54 5.8    0.027 0.010  0.52
+
+ Item statistics 
+         n raw.r std.r r.cor r.drop mean  sd
+TP05_01 76  0.73  0.73  0.68   0.60  2.1 1.1
+TP05_02 76  0.79  0.79  0.75   0.68  2.3 1.1
+TP05_03 76  0.82  0.82  0.77   0.72  2.4 1.1
+TP05_04 76  0.72  0.72  0.64   0.59  2.3 1.1
+TP05_05 76  0.85  0.85  0.83   0.77  2.6 1.1
+TP05_06 76  0.72  0.71  0.65   0.58  2.7 1.1
+
+Non missing response frequency for each item
+          -1    1    2    3    4    5 miss
+TP05_01 0.01 0.32 0.38 0.17 0.09 0.03    0
+TP05_02 0.00 0.26 0.37 0.20 0.14 0.03    0
+TP05_03 0.00 0.26 0.32 0.24 0.16 0.03    0
+TP05_04 0.00 0.30 0.29 0.26 0.13 0.01    0
+TP05_05 0.00 0.16 0.34 0.29 0.17 0.04    0
+TP05_06 0.00 0.14 0.36 0.24 0.21 0.05    0</code></pre>
 </div>
 </div>
 </section>
