@@ -105,7 +105,8 @@ data_raw <- data_raw[, c("code", setdiff(names(data_raw), "code"))] #set code as
 # View(data_raw[(is.na(data_raw$code) | data_raw$code == ""), ])
 data_raw <- data_raw[!(is.na(data_raw$code) | data_raw$code == ""), ] # remove empty/na codes (=27)
 
-data_raw_clean <- data_raw
+data_raw_clean <- clean_df(data_raw)
+# data_raw_clean <- data_raw
 
 # factorize some columns
 data_raw_clean$gender <- factor(data_raw_clean$gender) # TODO: umbenennen und reihenfolge der levels angeben
@@ -304,31 +305,31 @@ list_items_pu <- list(
 
 ## AI Literacy
 # data <- data %>% mutate(AILIT = AI35_02) # rename to sumscore
-list_items_ailit_wolke <- list(
-  "ailit_wolke" = grep(
-    "^(AI02|AI05|AI06|AI10|AI13|AI14|AI15|AI17_0[1-5]|AI18|AI20|AI21|AI23|AI24|AI25|AI27|AI28|AI29)",
-    names(data),
-    value = T
-  ), # items we think students learn in the WoLKE seminar
-  "ailit_short" = grep(
-    "^(AI01|AI04|AI09|AI015|AI17_0[1-5]|AI19|AI21|AI25|AI27|AI29)$",
-    names(data),
-    value = T
-  ) # short version of the AILIT
-)
+# list_items_ailit_wolke <- list(
+#   "ailit_wolke" = grep(
+#     "^(AI02|AI05|AI06|AI10|AI13|AI14|AI15|AI17_0[1-5]|AI18|AI20|AI21|AI23|AI24|AI25|AI27|AI28|AI29)",
+#     names(data),
+#     value = T
+#   ), # items we think students learn in the WoLKE seminar
+#   "ailit_short" = grep(
+#     "^(AI01|AI04|AI09|AI015|AI17_0[1-5]|AI19|AI21|AI25|AI27|AI29)$",
+#     names(data),
+#     value = T
+#   ) # short version of the AILIT
+# )
 
 # create new columns with the means of the lists
 data <- data %>%
   mutate(
     AILIT = AI35_02, # default sumscore
-    AILITWoLKE = rowMeans(
-      select(., all_of(list_items_ailit_wolke$ailit_wolke)),
-      na.rm = TRUE
-    ),
-    AILITShort = rowMeans(
-      select(., all_of(list_items_ailit_wolke$ailit_short)),
-      na.rm = TRUE
-    ),
+    # AILITWoLKE = rowMeans(
+    #   select(., all_of(list_items_ailit_wolke$ailit_wolke)),
+    #   na.rm = TRUE
+    # ),
+    # AILITShort = rowMeans(
+    #   select(., all_of(list_items_ailit_wolke$ailit_short)),
+    #   na.rm = TRUE
+    # ),
     TK = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
     TPK = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
     TCK = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
