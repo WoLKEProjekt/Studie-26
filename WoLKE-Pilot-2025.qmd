@@ -651,33 +651,48 @@ alpha_post_df <- tibble(
 )
 alpha_post_df
 ```
+
 ## Descriptive Plots
 
 ### Reshape data to long format
-```{r reshape-long}
-data_long <- data %>% pivot_longer(
-  cols = c(all_of(outcomes)),
-  names_to = "outcome",
-  values_to = "score"
-)
 
-data_long <- data_long %>% mutate(
-  outcome = factor(outcome, levels = outcomes)
-)
+```{r reshape-long}
+data_long <- data %>%
+  pivot_longer(
+    cols = c(all_of(outcomes)),
+    names_to = "outcome",
+    values_to = "score"
+  )
+
+data_long <- data_long %>%
+  mutate(
+    outcome = factor(outcome, levels = outcomes)
+  )
 ```
 
 ```{r descriptive-plots}
 # TPACK
-p_TPACK <- plot_outcome(data_long %>% filter(outcome %nin% c("AILIT", "PU")),
-scales_facet="fixed") %+%
+p_tpack <- plot_outcome(
+  data_long %>% filter(outcome %nin% c("AILIT", "PU")),
+  scales_facet = "fixed"
+) %+%
   ggtitle("Intelligent-TPACK")
 
+ggsave(
+  p_tpack %+% facet_wrap(~outcome, ncol = 3),
+  file = "figures/plot-tpack.pdf",
+  width = 8,
+  height = 10,
+  device = cairo_pdf
+)
 # AILIT and PU
-p_TPACK_AILIT <- plot_outcome(data_long %>% filter(outcome %in% c("AILIT","PU"))) %+%
+p_ailit_pu <- plot_outcome(
+  data_long %>% filter(outcome %in% c("AILIT", "PU"))
+) %+%
   ggtitle("AI Literacy and Perceived Usefulness")
 ```
 
-```{r save-env}
+```{r save-env }
 # save environment
 save.image("data/env-analysis.Rdata")
 ```

@@ -2,7 +2,7 @@
 title: "WoLKE CAEO 2025 Report"
 author: "Heiko Holz"
 date: "`r Sys.Date()`"
-lang: de
+lang: en
 page-layout: full
 document-css: false
 link-citations: true
@@ -21,12 +21,23 @@ format:
     html-math-method: mathjax
     wrap: none
     default-image-extension: png
+    date-format: long  
+  docx: 
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    fig-caption: true
+    fig-format: pdf
+    default-image-extension: pdf
     date-format: long
+    keep-md: true
+    echo: false
+prefer-html: true
 ---
 
 This document contains the analysis scripts and report for the manuscript "A Course on AI for Pre-Service STEM and Language Teachers: A Quasi-Experimental Evaluation of Learning Outcomes Using Intelligent-TPACK and AI Literacy Instruments ". The R scripts and data are hosted at <OSF>.
 
-```{r load-libraries-and-functions}
+```{r load-libraries-and-functions, cache=F}
 #| output: false
 library(this.path)
 library(dplyr) #e.g. for select
@@ -43,23 +54,54 @@ library(forcats)
 library(ggplot2)
 library(ggsci) # color palettes
 library(jtools) # theme_apa etc.
+library(papaja) # for apa reporting
 source(file = "functions.r") # all outsourced funtions
 ```
+
 
 ```{r load-data}
 # load "env-analysis.RData" which contains all data needed for the analysis
 load(file = "data/env-analysis.RData")
 ```
 
+```{r prepare-output}
+
+is_word <- !(knitr::is_html_output() | knitr::is_latex_output())
+
+if (is_word) {
+  library(flextable)
+}
+
+modelsummary_output <- ifelse(
+  knitr::is_latex_output(),
+  "latex_tabular",
+  ifelse(knitr::is_html_output(), "kableExtra", "flextable")
+)
+
+adjust_table_for_word <- function(ft, width=0) {
+  ft <- flextable::autofit(ft)
+  ft <- flextable::set_table_properties(ft, layout = "autofit", width=width)
+  ft <- flextable::fontsize(ft, size = 10, part = "header")
+  ft <- flextable::fontsize(ft, size = 8, part = "body")
+  ft
+}
+```
+
 # Methods
 
 ## Participants
+
+The final sample size included in the analyses was $n=76$ and is listed in @tbl-participants.
+
 ```{r table-participants, result = "asis"}
 #| label: tbl-participants
 #| tbl-cap: "Demographic Data of the Three Experimental Groups"
 # render as table
-format <- ifelse(knitr::is_html_output(), "markdown", ifelse(knitr::is_latex_output(), "latex", "markdown"))
-output_format <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+format <- ifelse(
+  knitr::is_html_output(),
+  "markdown",
+  ifelse(knitr::is_latex_output(), "latex", "markdown")
+)
 
 var_names <- list(
   gender = "Gender",
@@ -70,20 +112,58 @@ var_names <- list(
   subject1 = "Subject 1",
   subject2 = "Subject 2",
   studies = "Study Program",
-  location = "University"
+  location = "University",
+  TK = "Intelligent TK",
+  TCK = "Intelligent TCK",
+  TPK = "Intelligent TPK",
+  TPACK_total = "Intelligent TPACK",
+  AILIT = "AI Literacy",
+  PU = "Perceived Usefulness",
+  Ethics = "AI Ethics"
 )
 
 kable(
-  summary(tableby(intervention ~
-  location + age + gender + semester + isp + studies + subject1 + subject2, 
-                            data_dem_all %>% droplevels(), 
-                            cat.test ="chisq", chisq.correct=T,
-                            control = tableby.control(test=T, total=T, digits=2)), labelTranslations = var_names, pfootnote = T, text=F), 
+  summary(
+    tableby(
+      intervention ~
+        location +
+          age +
+          gender +
+          semester +
+          studies +
+          TK +
+          TCK +
+          TPK +
+          TPACK_total +
+          Ethics +
+          AILIT +
+          PU,
+      data %>% filter(time == "pre") %>% droplevels(),
+      cat.test = "chisq",
+      chisq.correct = T,
+      control = tableby.control(test = T, total = T, digits = 2)
+    ),
+    labelTranslations = var_names,
+    pfootnote = T,
+    text = F
+  ),
   escape = T,
-  format = format, booktabs = T) %>% 
-  add_footnote(c("ANOVA", "Pearson's Chi-squared test with Yates' continuity correction"), notation="number")
+  format = format,
+  booktabs = T
+)
 ```
+
 ## Materials
+
+### Translation Process
+The Intelligent-TPACK, originally developed by @celik2023, is widely used to assess teachers’ knowledge for pedagogical and ethical AI use based on the technological, pedagogical, and content knowledge (TPACK) framework.
+
+However, no empirically validated German translations of the Intelligent-TPACK exists. While some studies translate and use subsets of the Intelligent-TPACK [e.g., @mah.gross2024], there is no validated German version of the full instrument. 
+
+Therefore, for the Intelligent-TPACK by @celik2023 as well as items from the AI ethics subscale from @chiu.ahmad.ea2024, we translated the original items in a participative multi-step process involving not just experts from the fields of computer science and education, but also (pre-service) teachers.
+For this, we applied the *Modified Direct Translation* that includes translators and experts discussing the wording until reaching agreement [@behling.law2025]: First, seven researchers and experts in AI ED (additionally including one English teacher and one student teacher of Computer Science and English) translated the items independently. Second, we compared all translations and marked the items that received different translations. In a third step, we performed a group workshop in which the marked items were discussed and dot voting was applied to decide on the most apporopriate translation. Finally, three items that were still marked as questionable were discussed and further adapted with a native English teacher who teaches at University 2.
+
+The translation and validation of the Intelligent-TPACK is reported in detail in @authorsinprep.
 
 ## Analysis
 We analyzed the interventions' efficacy in a multilevel analysis approach. To contrast the differences of students' change in the respective outcome measure over time, we implemented a linear mixed-effects regression model for each outcome measure, considering our $3$ factorial design. To account for the panel structure, that is, two test sessions, in the data, we used the random effects (RE) estimation method to estimate treatment effects, following CITATION.
@@ -102,19 +182,193 @@ We tested for group differences concerning the following variables at baseline (
 That is, the final model for each outcome measure contained time, treatment, XYZ, University and the interaction of time and treatment as fixed effects and a random intercept for students, and was specified as follows:
 `lmer(outcome ~ time * treatment + age + semester + universty + (1|student))`.
 
+The criterion of statistical significance was set at α=.05.
+
+:::{.callout-note}
+Semesterzahl oder Studienlevel (Bachelor vs. Master) als Kovariate?
+:::
+
 ### Statistical Software
 We performed the statistical analyses in *R* [@R2024] using the following packages:
 *dplyr* [wickham2023:dplyr], *tidyr* [@wickham2024], and *gtools* [@warnes2023] for data wrangling;
-*arsenal* [@heinzen2021], *vtable* [@huntington2023], and *kableExtra* [@zhu2024] for creating tables; *ggplot2* [@wickham2016], *ggsci* [@xiao2024] and *jtools* [@long2022] for plotting; and *lme4* [@bates2015] and *lmerTest* [@kuznetsova2017] for linear mixed-effects regression analyses.
+*arsenal* [@heinzen2021], *vtable* [@huntington2023], *modelsummary* [@arel-bundock2022] and *kableExtra* [@zhu2024] for creating tables; *ggplot2* [@wickham2016], *ggsci* [@xiao2024] and *jtools* [@long2022] for plotting; and *lme4* [@bates2015] and *lmerTest* [@kuznetsova2017] for linear mixed-effects regression analyses.
 
 We used the *lme4* package [@bates2015] to fit linear mixed-effects models and the *broom.mixed* package [@bolker2024] to extract the results. Degrees of freedom and *p*-values were calculated using the *lmerTest* package [@kuznetsova2017] using Kenward-Roger's approximation for the denominator degrees of freedom. Pairwise comparisons between the treatment groups were computed using the *emmeans* package [@lenth2025].
 
+:::::: {.callout-important}
+Wollen wir Satterthwaite oder Kenward-Roger (konservativer in der Schätung) verwenden?
+:::
+
 # Results
-We will report the *main* effects of the treatment groups (i.e., control vs. STEM and language seminar, control vs. STEM seminar, control vs. language seminar, and STEM vs. language seminar).
+
 
 ## Descriptive Statistics
-Descriptive statistics of students' demographic characteristics and pre-test scores are presented in Table 1.
+Descriptive statistics of students' demographic characteristics and pre-test scores are presented in [@tbl-participants].
+
+We found significant differences between the treatment groups at the pretest in terms of gender distribution, age, and graduate level (see [@tbl-participants]). Therefore, we included these variables as covariates in the subsequent analyses.
+
+The descriptive statistics of students' change in the outcome measures over time per treatment group are listed in [@fig-tpack] and [@fig-ai-lit].
+
+```{r fig-tpack, echo=FALSE, fig.cap="Descriptive Statistics of Students' Intelligent TPACK Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=9}
+p_tpack %+%
+  facet_wrap(
+    ~outcome,
+    scales = "fixed",
+    ncol = 3,
+    labeller = labeller(
+      outcome = c(
+        TK = "Intelligent TK",
+        TCK = "Intelligent TCK",
+        TPK = "Intelligent TPK",
+        TPACKknow = "iTPACK - Knowledge",
+        TPACKcomp = "iTPACK - Competence",
+        TPACKgenai = "iTPACK - Generative AI",
+        Ethics = "AI Ethics"
+      )
+    )
+  )
+```
+
+```{r fig-ai-lit, echo=FALSE, fig.cap="Descriptive Statistics of Students' AI Literacy Scores and Perceived Usefulness Ratings Over Time by Treatment Group.", out.width="100%", fig.width = 6, fig.height = 4.25}
+p_ailit_pu + theme(legend.position = "bottom") + labs(y = "Score / Rating")
+```
 
 ## Linear Mixed-Effects Models
+We will report the *main* effects of the treatment groups (i.e., control vs. STEM and language seminar, control vs. STEM seminar, control vs. language seminar, and STEM vs. language seminar).
+
+The results of the linear mixed-effects models for each outcome measure are presented in [@tbl-lmer-ailit-summary] and [@tbl-lmer-tpack-summary].
+
+
+```{r tab.layout="autofit"}
+#| label: tbl-lmer-ailit-summary
+#| tbl-cap: "Summary of Linear Mixed-Effects Models for AI Literacy and Perceived Usefulness"
+
+ft <- modelsummary_models(
+  lmers_prepost_all[c(1, 9)],
+  ddf = "kr",
+  output = modelsummary_output,
+  # coef_rename = c("genderMännlich" = "Geschlecht")
+) # %>%   kableExtra::scroll_box(width = "100%")
+
+if (is_word) {
+  ft <- adjust_table_for_word(ft, width=.75)
+}
+ft
+```
+
+
+::: {.landscape}
+```{r tab.layout="autofit"}
+#| label: tbl-lmer-tpack-summary
+#| tbl-cap: "Summary of Linear Mixed-Effects Models for Intelligent TPACK Subscales and AI Ethics"
+
+ft <- modelsummary_models(
+  lmers_prepost_all[2:8],
+  ddf = "kr",
+  output = modelsummary_output,
+  # coef_rename = c("genderMännlich" = "Geschlecht")
+) # %>%   kableExtra::scroll_box(width = "100%")
+
+if (is_word) {
+  ft <- adjust_table_for_word(ft, width=1)
+}
+ft
+```
+:::
+
+### AI Literacy
+
+We did not find a significant main effect of treatment on students' change in AI literacy, `r report_lmer_anova(lmers_prepost_all[[1]])`. Neither did the control group's change differ significantly from both intervention groups, 
+`r report_lmer(lmers_prepost_all[[1]])`, nor did the change differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[[1]], term = 10)`.
+
+### Intelligent TPACK and AI Ethics
+For all subscales related to Intelligent TPACK and EI ethics, that is, Intelligent TK, Intelligent TPK, Intelligent TCK, Intelligent TPACK, and AI ethics, we found a significant main effect of treatment on student' change on the respective subscales. We found significantly higher increases in students' Intelligent TPACK subscales in both intervention groups compared to the control group, whereas the intervention groups did not differ significantly from each other, see [@tbl-lmer-summary] for an overview.
+
+#### Intelligent TK
+We found a significant main effect of treatment on students' change in intelligent TK, `r report_lmer_anova(lmers_prepost_all[[2]])`. 
+We found a significant higher increase in students' intelligent TK in both intervention groups compared to the control group, `r report_lmer(lmers_prepost_all[[2]])`, while the change did not differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[[2]], term = 10)`.
+
+### Intelligent TPK
+We found a significant main effect of treatment on students' change in intelligent TCK, `r report_lmer_anova(lmers_prepost_all[[3]])`.
+We found a significant higher increase in students' intelligent TCK in both intervention groups compared to the control group, `r report_lmer(lmers_prepost_all[[3]])`, whereas the two intervention groups did not differ significantly in their change, `r report_lmer(lmers_prepost_all[[3]], term = 10)`.
+
+### Intelligent TCK
+We found a significant main effect of treatment on students' change in intelligent TPK, `r report_lmer_anova(lmers_prepost_all[[4]])`.
+We found a significant higher increase in students' intelligent TPK in both intervention groups compared to the control group, `r report_lmer(lmers_prepost_all[[4]])`, but the change did not differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[[4]], term = 10)`.
+
+### Intelligent TPACK
+For all subscales of the Intelligent TPACK, that is, students' TPACK *knowledge*, their perceived *competence* in integrating AI tools teaching their subject, and their perceived competence of  applying *generative AI* in teaching their subject, we found a significant main effect of treatment on students' change on the respective subscales, *TPACK knowledge*: `r report_lmer_anova(lmers_prepost_all[[5]])`, *TPACK competence*: `r report_lmer_anova(lmers_prepost_all[[6]])`, and *TPACK related to generative AI*: `r report_lmer_anova(lmers_prepost_all[[7]])`.
+
+For all subscales, we found the same pattern that students' Intelligent TPACK subscales differed significantly between the control group and the two intervention groups, with students in the intervention groups having a significantly higher increase than the control group, whereas the intervention groups did not differ significantly from each other. That is, for *TPACK knoweldge*:  `r report_lmer(lmers_prepost_all[[5]])` and `r report_lmer(lmers_prepost_all[[5]], term = 10)`; *TPACK competence*: `r report_lmer(lmers_prepost_all[[6]])` and `r report_lmer(lmers_prepost_all[[6]], term=10)`; and *TPACK related to generative AI*, `r report_lmer(lmers_prepost_all[[7]])` and `r report_lmer(lmers_prepost_all[[7]], term = 10)`.
+
+### AI Ethics
+For ethics related to the use of AI in education, we found a significant main effect of treatment on students' change in **XYZ**, `r report_lmer_anova(lmers_prepost_all[[8]])`. We found a significant higher increase in students' **XYZ** in both intervention groups compared to the control group, `r report_lmer(lmers_prepost_all[[8]])`, whereas the change did not differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[[8]], term = 10)`.
+
+### Perceived Usefulness
 
 # Discussion
+
+# Playground
+
+```{r test}
+library(dplyr)
+library(tidyr)
+
+check_demo_vars <- function(
+  data,
+  demo_vars = c("age", "semester", "gender", "students"),
+  id = "code",
+  time_col = "time",
+  pre_label = "pre",
+  post_label = "post",
+  show_only_diff = FALSE
+) {
+  out <- data %>%
+    select(all_of(c(id, time_col, demo_vars))) %>%
+    # ensure a common type across demo vars
+    mutate(across(all_of(demo_vars), as.character)) %>%
+    pivot_longer(
+      cols = all_of(demo_vars),
+      names_to = "variable",
+      values_to = "value"
+      # alternatively: values_transform = as.character
+      # or: values_ptypes = list(value = character())
+    ) %>%
+    group_by(.data[[id]], variable, .data[[time_col]]) %>%
+    summarise(
+      value = paste(unique(na.omit(value)), collapse = ", "),
+      .groups = "drop"
+    ) %>%
+    pivot_wider(names_from = all_of(time_col), values_from = value) %>%
+    transmute(
+      !!id := .data[[id]],
+      variable,
+      pre = .data[[pre_label]],
+      post = .data[[post_label]],
+      match = (pre == post) | (is.na(pre) & is.na(post))
+    ) %>%
+    arrange(.data[[id]], variable)
+
+  if (show_only_diff) {
+    out <- filter(out, is.na(match) | !match)
+  }
+  out
+}
+check_demo_vars(
+  data,
+  demo_vars = c("age", "semester", "gender", "students"),
+  id = "code",
+  show_only_diff = T
+)
+```
+
+```{r rerun-models-with-graduate-level}
+lmers_prepost_all_graduate_level <- lapply(lmers_prepost_all, function(m) {
+  update(m, . ~ . - semester + students)
+})
+modelsummary_models(
+  lmers_prepost_all_graduate_level,
+  ddf = "kr",
+  output = modelsummary_output
+)
+```

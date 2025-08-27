@@ -1,3 +1,120 @@
+#' Report ANOVA results for a fixed effect in an lmer model
+#'
+#' Runs `lmerTest::anova()` on a fitted mixed-effects model using the
+#' specified type of sums of squares (I, II, or III) and denominator
+#' degrees of freedom method (default: Kenward–Roger). The output is
+#' formatted according to APA style via `papaja::apa_print()`.
+#'
+#' @param model A fitted lmer model (from lme4 or lmerTest).
+#' @param term  Character string, the name of the fixed effect to report.
+#' @param type  Type of sums of squares to use ("I", "II", or "III").
+#' @param ddf   Method for denominator degrees of freedom (e.g., "Kenward-Roger").
+#'
+#' @return A character string with APA-style ANOVA results, e.g.,
+#'   "F(1, 142) = 4.37, p = .038".
+#'
+#' @examples
+#' # report_lmer_anova(fit, term = "intervention_time")
+report_lmer_anova <- function(
+  model,
+  term = "intervention_time",
+  type = "II",
+  ddf = "Kenward-Roger"
+) {
+  if (!requireNamespace("lmerTest", quietly = TRUE)) {
+    stop("Package 'lmerTest' is required.")
+  }
+  if (!inherits(model, "lmerModLmerTest")) {
+    model <- lmerTest::as_lmerModLmerTest(model)
+  }
+
+  aov_tab <- anova(model, type = type, ddf = ddf)
+
+  apa_print(aov_tab)$full_result[[term]]
+}
+
+#' Report one fixed effect from an (lmer/lmerTest/lm) model in APA style
+#'
+#' Method:
+#'   Converts the model to an `lmerTest` object when possible to obtain
+#'   per-term t-tests and denominator dfs (e.g., Kenward–Roger). Extracts the
+#'   requested coefficient (by name or index) via `broom::tidy()`, then formats
+#'   **b**, **SE**, **t**, **p** using `papaja::apa_num()` / `papaja::apa_p()`.
+#'   Falls back to the residual df for plain `lm` (or when per-term df are
+#'   unavailable). Output can be wrapped in math mode for Quarto.
+#'
+#' @param model A fitted model (`lmerMod`/`lmerModLmerTest`/`lm`).
+#' @param term  Coefficient to report (name or 1-based index). Default: 1.
+#' @param ddf   Denominator-df method passed to `summary()` when model is
+#'              `lmerTest` (e.g., `"Kenward-Roger"` or `"Satterthwaite"`).
+#' @param math  If TRUE, wrap the result in `$...$` for math rendering.
+#'
+#' @return A single character string, e.g.
+#'   `$b = 0.23,\ SE = 0.07,\ t(28) = 3.45,\ p = .002$`
+report_lmer <- function(model, term = 9, ddf = "Kenward-Roger", math = TRUE) {
+  if (!requireNamespace("papaja", quietly = TRUE)) {
+    stop(
+      "Package 'papaja' is required. Install it via install.packages('papaja')."
+    )
+  }
+  if (!requireNamespace("broom", quietly = TRUE)) {
+    stop(
+      "Package 'broom' is required. Install it via install.packages('broom')."
+    )
+  }
+
+  # use broom::tidy to extract coefficient info
+  tt <- broom::tidy(model, ddf = ddf)
+  terms <- tt$term
+
+  # resolve term (by name or index)
+  i <- if (is.numeric(term)) as.integer(term) else match(term, terms)
+  if (is.na(i) || i < 1 || i > nrow(tt)) {
+    stop(
+      "Requested `term` not found. Available terms: ",
+      paste(terms, collapse = ", ")
+    )
+  }
+
+  # pull and format values
+  b <- papaja::apa_num(tt$estimate[i])
+  se <- papaja::apa_num(tt$std.error[i])
+  t <- papaja::apa_num(tt$statistic[i])
+  df <- papaja::apa_num(tt$df[i])
+  p <- apa_p(tt$p.value[i], add_equals = T)
+
+  wrap_math <- function(x) if (math) paste0("$", x, "$") else x
+
+  txt <- paste(
+    wrap_math(paste0("b = ", b)),
+    wrap_math(paste0("SE = ", se)),
+    wrap_math(paste0("t(", df, ") = ", t)),
+    wrap_math(paste0("p = ", p)),
+    sep = ", "
+  )
+  txt
+}
+
+#' Report one fixed effect from an lmer model using papaja
+#'
+#' @param model lmer model (from lmerTest::lmer)
+#' @param term  name of the fixed effect (character)
+#' @return character string like "b = 0.23, t = 2.34, p = .021"
+report_lmer_papaja <- function(
+  model,
+  term = "intervention_C_MINT_Sprache_timepost",
+  ddf = "Kenward-Roger"
+) {
+  # if lmer model is not of type lmerTest, then refit it
+  if (class(model)[1] != "lmerModLmerTest") {
+    model <- lmerTest::as_lmerModLmerTest(model)
+  }
+  apa_print(
+    model,
+    standardized = FALSE
+  )$full_result[[term]] # get apa_print output
+}
+
 plot_outcome <- function(
   data,
   groups = "intervention",
@@ -7,7 +124,7 @@ plot_outcome <- function(
   # set color scale/palette and plot theme
   wolke_color_scale <- scale_colour_manual(values = rev(pal_jco("default")(3)))
   wolke_theme <-
-    theme_apa(
+    jtools::theme_apa(
       legend.pos = "bottomright",
       legend.use.title = T,
       facet.title.size = 12,
@@ -33,7 +150,13 @@ plot_outcome <- function(
     # add error bars
     stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
     facet_wrap(~outcome, scales = scales_facet, ncol = 2) +
-    labs(x = "Time", y = ylab) +
+    labs(
+      x = "Time",
+      y = ylab,
+      color = "Treatment Groups",
+      shape = "Treatment Groups",
+      linetype = "Treatment Groups"
+    ) +
     wolke_color_scale +
     wolke_theme
 }
@@ -111,9 +234,9 @@ fit_lmer <- function(
 
     # print(formula_string)
     if (is.null(lmer_control) && !is.null(random_term)) {
-      model <- lme4::lmer(as.formula(formula_string), data = data)
+      model <- lmer(as.formula(formula_string), data = data)
     } else if (!is.null(random_term)) {
-      model <- lme4::lmer(
+      model <- lmer(
         as.formula(formula_string),
         data = data,
         control = lmer_control
@@ -152,7 +275,9 @@ modelsummary_models <- function(
   models,
   outcomes = NULL,
   title = NULL,
-  output = "kableExtra"
+  output = "kableExtra",
+  ddf = "Kenward-Roger",
+  coef_rename = NULL
 ) {
   # create a new list based on the outcomes that contains names(list)=models
   if (!is.null(outcomes)) {
@@ -178,6 +303,8 @@ modelsummary_models <- function(
     shape = term ~ model + statistic,
     title = title,
     fmt = fmt_decimal(digits = 2, pdigits = 3),
+    ci_method = ddf,
+    coef_rename = coef_rename,
     escape = switch(output, "latex" = T, "latex_tabular" = T, F)
   )
   if (output == "kableExtra") {
