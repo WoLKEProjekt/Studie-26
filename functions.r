@@ -1,3 +1,30 @@
+#' Report one contrast from an emmeans contrast object in APA style
+#'
+#' This function extracts the estimate, standard error, and p-value from a
+#' given contrast (e.g., an emmeans contrast object), and returns them as a
+#' character string formatted in APA style with inline math notation.
+#'
+#' @param contrast An emmeans contrast object or data.frame-like object
+#'   containing at least the columns `estimate`, `SE`, and `p.value`.
+#' @param idx Numeric index of the row (contrast) to report. Default = 1.
+#'
+#' @return A character string, e.g.
+#'   `"$1.10$, $SE = 0.63$, $p = .086$"`,
+#'   ready for inline reporting in Quarto/Markdown.
+#'
+#' @examples
+#' # emms <- emmeans(model, ~ intervention * time)
+#' # ctr <- contrast(emms, method = "revpairwise")
+#' # report_contrast(ctr, 1)
+report_contrast <- function(contrast, idx = 1) {
+  d <- as.data.frame(contrast[idx])
+  est <- d$estimate %>% apa_num
+  se <- d$SE %>% apa_num
+  t <- d$t.ratio %>% apa_num
+  p_val <- d$p.value %>% apa_p(add_equals = TRUE)
+
+  paste0("$b =", est, "$, $SE = ", se, "$, t=", t, ", $p ", p_val, "$")
+}
 #' Report ANOVA results for a fixed effect in an lmer model
 #'
 #' Runs `lmerTest::anova()` on a fitted mixed-effects model using the

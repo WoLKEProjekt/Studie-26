@@ -35,7 +35,7 @@ format:
 prefer-html: true
 ---
 
-This document contains the analysis scripts and report for the manuscript "A Course on AI for Pre-Service STEM and Language Teachers: A Quasi-Experimental Evaluation of Learning Outcomes Using Intelligent-TPACK and AI Literacy Instruments ". The R scripts and data are hosted at <OSF>.
+This document contains the analysis scripts and report for the manuscript "A Course on AI for Pre-Service STEM and Language Teachers: A Quasi-Experimental Evaluation of Learning Outcomes Using Intelligent-TPACK and AI Literacy Instruments ". The R scripts, data are hosted at <OSF>.
 
 ```{r load-libraries-and-functions, cache=F}
 #| output: false
@@ -98,8 +98,36 @@ adjust_table_for_word <- function(ft, width=0) {
 
 ## Participants
 
-The final sample size included in the analyses was $n=76$.
-Descriptive statistics of students' demographics and pre-test scores are presented in [@tbl-participants].
+```{r}
+data_participants <- data %>%
+  filter(time == "pre") %>%
+  group_by(intervention, location, gender) %>%
+  summarise(
+    n = n(),
+    n_complete = sum(complete.cases(.)),
+    age_min = min(age, na.rm = T),
+    age_max = max(age, na.rm = T),
+    age_mean = mean(age, na.rm = T) %>% round(2),
+    age_sd = sd(age, na.rm = T) %>% round(2),
+    semester_min = min(semester, na.rm = T),
+    semester_max = max(semester, na.rm = T),
+    semester_mean = mean(semester, na.rm = T) %>% round(2),
+    semester_sd = sd(semester, na.rm = T) %>% round(2)
+    ) %>% ungroup()
+```
+
+
+The study involved pre-service teachers from two universities of education in Baden-Württemberg, Germany. Participants were divided into a **treatment group** consisting of two intervention groups (STEM and language course), and a **control group**.
+Students in the treatment groups self-selected the courses "AI in STEM/Language Education" as part of their compulsory elective studies. The control group was recruited from other STEM courses at University 1 during the same semester. 
+
+In total, $N=`r data_all %>% filter(time=="pre") %>% nrow()`$ students originally participated in the study ($N_c=`r data_all %>% filter(time=="pre", intervention=="control") %>%nrow`$ in the control group, $N_s= `r data_all %>% filter(time=="pre", intervention=="stem") %>%nrow `$ in the STEM course, and $N_l=`r data_all %>% filter(time=="pre", intervention=="language") %>%nrow `$ in the language course), of which $n=`r data_participants$n %>% sum`$ completed both pre- and the posttest and were included in the analyses ($n_c = `r data_participants%>%filter(intervention=="control") %>% select(n)%>%sum`$, $n_s = `r data_participants%>%filter(intervention=="stem") %>% select(n)%>%sum`$, $n_l = `r data_participants%>%filter(intervention=="language") %>% select(n) %>% sum`$).
+
+Unfortunately, we observed a high drop-out rate between the pre- and posttest. We attribute this to several factors: First, the posttests were conducted in class close  (one to two weeks) to the examination period, resulting in students not attending the in-person posttest sessions. For the control group, some lecturers executed the posttest during their teaching, while others did not. We suspect a high drop-out at the posttest for the control group due to both factors: students not attending the sessions close to the examination week and not conducting the tests at home or in their free study time.
+
+
+Descriptive statistics of students' demographics and pretest scores are presented in [@tbl-participants]. The final sample size included in the analyses was $n=76$, aged between $`r data_pre$age%>%min`$ and $`r data_pre$age %>% max`$ years ($M=`r data_pre$age%>%mean %>% round(2)`$, $SD=`r data_pre$age%>%sd%>%round(2)`$), of which $`r data_pre%>%filter(gender=="Weiblich")%>%nrow`$ identified as female and $`r data_pre%>%filter(gender=="Männlich")%>%nrow`$ as male.
+The students were enrolled in semester $`r data_pre$semester%>%min`$ to $`r data_pre$semester%>%max`$ ($M=`r data_pre$semester%>%mean%>%round(2)`$, $SD=`r data_pre$semester%>%sd%>%round(2)`$). Of these, $`r data_pre%>%filter(students=="bachelor")%>%nrow`$ students were at the Bachelor's level and $`r data_pre%>%filter(students=="master")%>%nrow`$ at the Master's level.
+
 
 ```{r table-participants, result = "asis"}
 #| label: tbl-participants
@@ -146,7 +174,7 @@ kable(
           Ethics +
           AILIT +
           PU,
-      data %>% filter(time == "pre") %>% droplevels(),
+      data %>% filter(time == "pre") %>% mutate(gender = factor(gender, labels=c("Female","Male")), students=factor(students, labels=c("Bachelor", "Master"))) %>% droplevels(),
       cat.test = "chisq",
       chisq.correct = T,
       control = tableby.control(test = T, total = T, digits = 2)
@@ -174,6 +202,8 @@ The translation and validation of the Intelligent-TPACK is reported in detail in
 
 ## Analysis
 We analyzed the interventions' efficacy in a multilevel analysis approach. To contrast the differences of students' change in the respective outcome measure over time, we implemented a linear mixed-effects regression model for each outcome measure, considering our $3$ factorial design. To account for the panel structure, that is, two test sessions, in the data, we used the random effects (RE) estimation method to estimate treatment effects, following CITATION.
+
+The raw data and *R* scripts detailing the analyses can be acccessed in the online supplement at <OSF>
 
 :::{.callout-note}
 Ist unser Design 3- oder 2-faktoriell?
@@ -214,48 +244,16 @@ Wollen wir Satterthwaite oder Kenward-Roger (konservativer in der Schätung) ver
 
 # Results
 
-
-## Descriptive Statistics
-
-Descriptive statistics of students' pre-test scores are presented in [@tbl-participants].
+Descriptive statistics of students' pretest scores are presented in [@tbl-participants].
 As expected, students attending the STEM course and students from the control group, which was recruited from pre-service STEM teachers, reported significantly higher ratings in all Intelligent TPACK subscales compared to students attending language course, which predominantly consisted of students not studying a STEM subject as their second subject. We didn't find significant differences between the intervention groups for AI literacy, AI ethics, and perceived usefulness at the pretest.
 
-The descriptive statistics of students' change in the outcome measures over time per treatment group are listed in [@fig-tpack] and [@fig-ai-lit].
+The descriptive statistics of students' change in the outcome measures over time per treatment group are listed in  [@fig-ai-lit], [@fig-tpack], and [@fig-pu].
 
-```{r fig-tpack, echo=FALSE, fig.cap="Descriptive Statistics of Students' Intelligent TPACK and AI Ethics Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=9}
-p_tpack +
-  facet_wrap(
-    ~outcome,
-    scales = "fixed",
-    ncol = 3,
-    labeller = labeller(
-      outcome = c(
-        TK = "Intelligent TK",
-        TCK = "Intelligent TCK",
-        TPK = "Intelligent TPK",
-        TPACKknow = "iTPACK - Knowledge",
-        TPACKcomp = "iTPACK - Competence",
-        TPACKgenai = "iTPACK - Generative AI",
-        Ethics = "AI Ethics"
-      )
-    )
-  ) + ggtitle("Intelligent TPACK and AI Ethics")
-```
-
-```{r fig-ai-lit, echo=FALSE, fig.cap="Descriptive Statistics of Students' AI Literacy Scores and Perceived Usefulness Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=4}
-p_ailit + facet_wrap(~outcome, ncol =3, scales="free")  + labs(y = "Score")  + theme(legend.position = "bottom")
-```
-
-```{r fig-pu, echo=FALSE, fig.cap="Descriptive Statistics of Students' Perceived Usefulness Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=6}
-p_pu + facet_wrap(~outcome, ncol =3, scales="fixed")  + labs(y = "Rating") # + theme(legend.position = "bottom")
-```
-
-## Linear Mixed-Effects Models
 For all outcome measure, we will first report the *main* treatment effect, i.e., the interaction between time and treatment group. Then, we will report the differences between treatment groups, i.e., control vs. intervention groups (STEM and language course), and then contrast the intervention groups, i.e., STEM vs. language course).
 
-The results of the linear mixed-effects models for each outcome measure are presented in [@tbl-lmer-ailit-summary] and [@tbl-lmer-tpack-summary].
+The results of the linear mixed-effects models for each outcome measure are presented in [@tbl-lmer-ailit-summary], [@tbl-lmer-tpack-summary], and [@tbl-lmer-pu-summary].
 
-### Effect Sizes
+## Effect Sizes
 
 ```{r effect-sizes}
 dhat <- function(model, idx=3, type=2){
@@ -296,7 +294,12 @@ effect_sizes <- sapply(lmers_prepost_all, lmer_d,"intervention-C+MINT_Sprache:ti
 effect_sizes
 ```
 
-### AI Literacy
+## AI Literacy
+Descriptive results of students' AI literacy scores are shown in [@fig-ai-lit], and the results of the linear mixed-effects models are listed in [@tbl-lmer-ailit-summary].
+
+```{r fig-ai-lit, echo=FALSE, fig.cap="Descriptive Statistics of Students' AI Literacy Scores Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=4}
+p_ailit + facet_wrap(~outcome, ncol =3, scales="free")  + labs(y = "Score")  + theme(legend.position = "bottom")
+```
 
 ```{r tab.layout="autofit"}
 #| label: tbl-lmer-ailit-summary
@@ -315,8 +318,13 @@ if (is_word) {
 ft_ailit
 ```
 
+### AI Literacy -- Full Scale
 We did not find a significant main effect of treatment on students' change in AI literacy, `r report_lmer_anova(lmers_prepost_all[["AILIT"]])`. Neither did the control group's change differ significantly from both intervention groups, 
 `r report_lmer(lmers_prepost_all[["AILIT"]], term = tc1)`, nor did the change differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["AILIT"]], term = tc2)`.
+
+### AI Literacy -- Study-Specific Subset
+For the study-specific subset of the AI literacy items, we also did not find a significant main effect of treatment on students' change in AI literacy, `r report_lmer_anova(lmers_prepost_all[["AILITWolke"]])`. The control group's change did not differ significantly from both intervention groups, 
+`r report_lmer(lmers_prepost_all[["AILITWolke"]], term = tc1)`, nor did the change between the two intervention groups, `r report_lmer(lmers_prepost_all[["AILITWolke"]], term = tc2)`.
 
 #### Pairwise Contrasts Within Groups
 ```{r ailit-within-contrasts}
@@ -337,9 +345,33 @@ ailit_between_contrasts <- lapply(lmers_prepost_all[1:3], function(m) {
 print(ailit_between_contrasts)
 ```
 
-### Intelligent TPACK and AI Ethics
+However, as can be seen in [@fig-ai-lit], students in both intervention groups showed descriptively higher increases in AI literacy compared to the control group. When performing post-hoc contrasts, we found that students in the STEM course had a marginally significantly higher increase in the study-specific AI literacy compared to the control group, `r report_contrast(ailit_between_contrasts[[2]], 1)`, while the difference between students in the language course and the control group was insignificant, `r report_contrast(ailit_between_contrasts[[2]],2)`. All contrast analyses can be accessed in the online supplement at <OSF>.
+
+
+## Intelligent TPACK and AI Ethics
+The descriptive results of students' ratings of perceived knowledge in Intelligent TPACK and AI ethics are shown in [@fig-tpack], and [@tbl-lmer-tpack-summary] lists the results of the linear mixed-effects models.
+
 For all subscales related to Intelligent TPACK and EI ethics, that is, Intelligent TK, Intelligent TPK, Intelligent TCK, Intelligent TPACK, and AI ethics, we found a significant main effect of treatment on student' change on the respective subscales. We found significantly higher increases in students' Intelligent TPACK subscales in both intervention groups compared to the control group, whereas the intervention groups did not differ significantly from each other, see [@tbl-lmer-tpack-summary] for an overview.
 
+```{r fig-tpack, echo=FALSE, fig.cap="Descriptive Statistics of Students' Intelligent TPACK and AI Ethics Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=9}
+p_tpack +
+  facet_wrap(
+    ~outcome,
+    scales = "fixed",
+    ncol = 3,
+    labeller = labeller(
+      outcome = c(
+        TK = "Intelligent TK",
+        TCK = "Intelligent TCK",
+        TPK = "Intelligent TPK",
+        TPACKknow = "iTPACK - Knowledge",
+        TPACKcomp = "iTPACK - Competence",
+        TPACKgenai = "iTPACK - Generative AI",
+        Ethics = "AI Ethics"
+      )
+    )
+  ) + ggtitle("Intelligent TPACK and AI Ethics")
+```
 
 ::: {.landscape}
 ```{r tab.layout="autofit"}
@@ -360,7 +392,7 @@ ft
 ```
 :::
 
-#### Intelligent TK
+### Intelligent TK
 We found a significant main effect of treatment on students' change in intelligent TK, `r report_lmer_anova(lmers_prepost_all[["TK"]])`. 
 We found a significant higher increase in students' intelligent TK in both intervention groups compared to the control group, `r report_lmer(lmers_prepost_all[["TK"]], term = tc1)`, while the change did not differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["TK"]], term = tc2)`.
 
@@ -380,8 +412,20 @@ For all subscales, we found the same pattern that students' change in Intelligen
 ### AI Ethics
 For ethics related to the use of AI in education, we found a significant main effect of treatment on students' change in **XYZ**, `r report_lmer_anova(lmers_prepost_all[["Ethics"]])`. We found a significant higher increase in students' **XYZ** in the intervention groups compared to the control group, `r report_lmer(lmers_prepost_all[["Ethics"]], term = tc1)`, whereas the change did not differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["Ethics"]], term = tc2)`.
 
-### Perceived Usefulness
-The results of the linear mixed-effects models for perceived usefulness are presented in [@tbl-lmer-pu-summary].
+## Perceived Usefulness
+Descriptive results of students' perceived usefulness of XYZ are listed in [@fig-pu], while the results of the linear mixed-effects models for perceived usefulness are presented in [@tbl-lmer-pu-summary].
+
+```{r fig-pu, echo=FALSE, fig.cap="Descriptive Statistics of Students' Perceived Usefulness Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=6}
+p_pu + facet_wrap(~outcome, ncol =3, scales="fixed", labeller= as_labeller(c(
+  "PU"  = "PU: Perceived Usefulness",
+  "PU1" = "PU1: Increases Teaching Quality",
+  "PU2" = "PU2: Reduces Workload",
+  "PU3" = "PU3: Increases Effectiveness",
+  "PU4" = "PU4: Usefulness for Work"
+)))  + labs(y = "Rating") # + theme(legend.position = "bottom")
+```
+
+::: {.landscape}
 ```{r tab.layout="autofit"}
 #| label: tbl-lmer-pu-summary
 #| tbl-cap: "Summary of Linear Mixed-Effects Models for Perceived Usefulness."
@@ -399,7 +443,9 @@ if (is_word) {
 ft_pu
 ```
 
-For the entire scale, we did not find a significant main effect of treatment on students' change in perceived usefulness, `r report_lmer_anova(lmers_prepost_all[["PU"]])`. Neither did the control group's change differ significantly from both intervention groups,
+:::
+
+For the overall perceived usefulness, we did not find a significant main effect of treatment on students' change in perceived usefulness, `r report_lmer_anova(lmers_prepost_all[["PU"]])`. Neither did the control group's change differ significantly from both intervention groups, `r report_lmer(lmers_prepost_all[["PU"]], term = tc1)`, nor did the change differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["PU"]], term = tc2)`.
 
 
 ```{r results="asis", include=F}
