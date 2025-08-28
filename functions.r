@@ -51,7 +51,7 @@ report_lmer_anova <- function(
 #'
 #' @return A single character string, e.g.
 #'   `$b = 0.23,\ SE = 0.07,\ t(28) = 3.45,\ p = .002$`
-report_lmer <- function(model, term = 9, ddf = "Kenward-Roger", math = TRUE) {
+report_lmer <- function(model, term = 8, ddf = "Kenward-Roger", math = TRUE) {
   if (!requireNamespace("papaja", quietly = TRUE)) {
     stop(
       "Package 'papaja' is required. Install it via install.packages('papaja')."
@@ -89,7 +89,7 @@ report_lmer <- function(model, term = 9, ddf = "Kenward-Roger", math = TRUE) {
     wrap_math(paste0("b = ", b)),
     wrap_math(paste0("SE = ", se)),
     wrap_math(paste0("t(", df, ") = ", t)),
-    wrap_math(paste0("p = ", p)),
+    wrap_math(paste0("p", p)),
     sep = ", "
   )
   txt
@@ -271,12 +271,99 @@ fit_lmer <- function(
   }
 }
 
+tab_models <- function(
+  models,
+  string.est = "b",
+  p.val = "kr",
+  title = NULL,
+  vcov.fun = NULL,
+  vcov.args = NULL,
+  df.method = "kr"
+) {
+  tab_model(
+    models,
+    p.val = p.val,
+    title = title,
+    string.est = string.est,
+    show.ci = F,
+    show.stat = T,
+    string.stat = "t",
+    show.se = T,
+    string.se = "SE",
+    #p.style = "numeric_stars",
+    vcov.fun = vcov.fun,
+    vcov.args = vcov.args,
+    df.method = df.method
+  )
+}
+
+# change class of the ANCOVA models to the given class name, defaulting to 'lmerMod'
+change_class <- function(model, class = "lmerMod") {
+  m <- model
+  class(m) <- class
+  return(m)
+}
+
+stargazer_models <- function(
+  models,
+  title = "Titel",
+  column.labels = NULL,
+  se = NULL,
+  type = "html",
+  df.method = "Kenward-Roger"
+) {
+  ddfs <- list(
+    "kr" = "Kenward-Roger",
+    "kenward-roger" = "Kenward-Roger",
+    "satterthwaite" = "Satterthwaite",
+    "Satterthwaite" = "Satterthwaite",
+    "wald" = "Wald"
+  )
+  # extract p-values from lmer
+  p_values <- lapply(models, function(x) {
+    if (class(x)[1] == "lmerModLmerTest" && tolower(df.method) != "wald") {
+      return(summary(x, ddf = ddfs[[df.method]])$coefficients[, 5])
+    } else if (class(x)[1] == "lm") {
+      return(summary(x)$coefficients[, 4])
+    }
+  })
+
+  models_stargazer = models
+  if (class(models[[1]])[1] == "lmerModLmerTest") {
+    # change the class of the ANCOVAs to "lmerMod"
+    models_stargazer <- lapply(models, change_class, "lmerMod")
+  }
+
+  stargazer(
+    models_stargazer,
+    #omit = c("Constant"),
+    column.labels = column.labels,
+    digits = 2,
+    se = se,
+    p = p_values,
+    type = type,
+    keep.stat = c("n", "rsq", "adj.rsq"),
+    no.space = TRUE,
+    float = TRUE,
+    header = FALSE,
+    font.size = "scriptsize",
+    star.cutoffs = c(0.1, 0.05, 0.01, 0.001),
+    star.char = c("+", "*", "**", "***"),
+    notes = c("+ p<.1; * p<.05; ** p<.01; *** p<.001"),
+    notes.append = F,
+    table.placement = "htpb!",
+    intercept.bottom = F,
+    report = ("vc*stp"),
+    title = title
+  )
+}
+
 modelsummary_models <- function(
   models,
   outcomes = NULL,
   title = NULL,
   output = "kableExtra",
-  ddf = "Kenward-Roger",
+  ddf = "kr",
   coef_rename = NULL
 ) {
   # create a new list based on the outcomes that contains names(list)=models

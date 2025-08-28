@@ -570,7 +570,7 @@ outcomes <- c(
   "PU4"
 )
 time <- "time"
-controls <- c("age", "gender", "location")
+controls <- c("gender", "semester", "location")
 
 # groups set as NA
 lmers_prepost_all <-
@@ -673,23 +673,29 @@ data_long <- data_long %>%
 ```{r descriptive-plots}
 # TPACK
 p_tpack <- plot_outcome(
-  data_long %>% filter(outcome %nin% c("AILIT", "PU")),
+  data_long %>% filter(!str_detect(outcome, "^(AILIT|PU)")),
   scales_facet = "fixed"
-) %+%
+) +
   ggtitle("Intelligent-TPACK")
 
 ggsave(
-  p_tpack %+% facet_wrap(~outcome, ncol = 3),
+  p_tpack + facet_wrap(~outcome, ncol = 3),
   file = "figures/plot-tpack.pdf",
   width = 8,
   height = 10,
   device = cairo_pdf
 )
 # AILIT and PU
-p_ailit_pu <- plot_outcome(
-  data_long %>% filter(outcome %in% c("AILIT", "PU"))
-) %+%
-  ggtitle("AI Literacy and Perceived Usefulness")
+p_ailit <- plot_outcome(
+  data_long %>% filter(str_detect(outcome, "^(AILIT)"))
+) +
+  ggtitle("AI Literacy")
+
+p_pu <- plot_outcome(
+  data_long %>% filter(str_detect(outcome, "^(PU)")),
+  scales_facet = "fixed"
+) +
+  ggtitle("Perceived Usefulness")
 ```
 
 ```{r save-env }
