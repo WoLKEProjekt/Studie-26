@@ -436,9 +436,9 @@ list_items_pu <- list(
 # sum(data_subset2 < 0, na.rm = TRUE)
 
 ## Reflection (bei Piloten irrelevant)
-# list_items_ref <- list(
-#   "Ref" = grep("^RE01_", names(data), value=T)
-# )
+list_items_ref <- list(
+  "Ref" = grep("^RE01_", names(data), value = T)
+)
 # data_subset3 <- data %>% select(all_of(unlist(list_items_ref)))
 # sum(data_subset3 < 0, na.rm = TRUE)
 
@@ -496,7 +496,7 @@ data <- data %>%
     PU2 = ED03_02,
     PU3 = ED03_03,
     PU4 = ED03_04,
-    # Ref    = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
+    Ref = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
     TPACK_total = rowMeans(
       select(., all_of(unlist(list_items_i_tpack))),
       na.rm = TRUE
@@ -607,4 +607,22 @@ result_df <- desc_df %>%
 
 result_df
 
+# look at reflection scales' alpha in post data
+data_post <- data %>% filter(time == "post")
+ref_scale <- c(
+  list_items_ref
+)
+
+# 1) Cronbach's alpha for each scale
+alphas_post <- imap(
+  ref_scale,
+  ~ psych::alpha(dplyr::select(data_post, dplyr::all_of(.x)), warnings = FALSE)
+)
+
+# 2) Extract only std.alpha
+alpha_post_df <- tibble(
+  scale = names(alphas_post),
+  std_alpha = map_dbl(alphas_post, ~ .x$total$std.alpha)
+)
+alpha_post_df
 ```
