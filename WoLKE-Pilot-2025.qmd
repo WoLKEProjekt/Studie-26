@@ -76,6 +76,18 @@ data_raw$QUESTNNR[
     grepl("mint", data_raw$QUESTNNR)
 ] <- "mint-post" # fixe some wrong entries in pre list to post
 
+# after checking dem_diff later, we see subjs with different group/location values in pre and post (döne15, HONA18)
+# correct them here as early as possible
+data_raw$QUESTNNR[!is.na(data_raw$DE13_01) & data_raw$DE13_01 == "DÖNE15"][
+  1
+] <- "sprache"
+data_raw$DE08[!is.na(data_raw$DE13_01) & data_raw$DE13_01 == "DÖNE15"][
+  1
+] <- "Ja"
+data_raw$DE11[!is.na(data_raw$DE13_01) & data_raw$DE13_01 == "HONA18"][
+  1
+] <- "PH Schwäbisch Gmünd"
+
 # rename demographics
 data_raw <- data_raw %>%
   mutate(
@@ -260,7 +272,14 @@ if (check_dist) {
 # check demograph. differences pre to post
 dem_diff <- check_demo_vars(
   data,
-  demo_vars = c("age", "semester", "gender", "students"),
+  demo_vars = c(
+    "age",
+    "semester",
+    "gender",
+    "students",
+    "intervention",
+    "location"
+  ),
   id = "code",
   show_only_diff = T
 )
@@ -381,7 +400,7 @@ nrow(data_dem_all) # 76 participants with pre and post test
 
 # Create the formula
 demographics_formula <- intervention ~
-  location + age + gender + semester + isp + studies + subject1 + subject2
+  location + age + gender + semester + isp + studies #+ subject1 + subject2
 demographics <- tableby(demographics_formula, data = data_dem_all)
 
 # Ausgabe als Tabellen
@@ -390,7 +409,8 @@ summary(demographics) %>%
   knitr::kable(caption = "Demographic Summary")
 
 # Welche Fächer gibt es wie oft?
-counts <- data_dem_all %>%
+subject_counts <- data_dem_all %>%
+  group_by(intervention) %>%
   pivot_longer(
     c(subject1, subject2),
     names_to = "slot",
@@ -398,10 +418,10 @@ counts <- data_dem_all %>%
   ) %>%
   mutate(subject = str_squish(subject)) %>%
   filter(!is.na(subject), subject != "") %>%
-  count(subject, sort = TRUE, name = "n") %>%
-  mutate(p = n / sum(n))
+  count(subject, sort = TRUE, name = "n") #%>%
+# mutate(p = n / sum(n))
 
-counts
+print(n = 100, subject_counts)
 
 ```
 
@@ -414,13 +434,8 @@ list_items_i_tpack <- list(
   "TK" = grep("^TP01_", names(data), value = T),
   "TPK" = grep("^TP02_", names(data), value = T),
   "TCK" = grep("^TP03_", names(data), value = T),
-  "TPACK_know" = grep("^TP04_(04|05|06|07|08|15)$", names(data), value = T), # Sub-Subskala 1: Wissen ("ich weiß, wie ...")
-  "TPACK_comp" = grep(
-    "^TP04_(01|02|03|09|10|11|12|13|14)$",
-    names(data),
-    value = T
-  ), # Sub-Subskala 2: Kompetenzen ("ich kann ...")
-  "TPACK_genai" = grep("^TP04_(09|10|11|13|14)$", names(data), value = T), # Sub-Subskala 3: GenAI Items
+  "TPACK_ce" = grep("^TP04_(0[1-8]|12|15)$", names(data), value = T), # Sub-Subskala 1: Celik Enhanced Items
+  "TPACK_genai" = grep("^TP04_(09|10|11|13|14)$", names(data), value = T), # Sub-Subskala 2: GenAI Items
   "Ethics" = grep("^TP05_0[1-6]$", names(data), value = T) #im pretest nur items 1-6 vorhanden 7,8 kamen im post dazu
 )
 
@@ -475,16 +490,12 @@ data <- data %>%
     TK = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
     TPK = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
     TCK = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
-    TPACKknow = rowMeans(
-      select(., all_of(list_items_i_tpack$TPACK_know)),
-      na.rm = TRUE
-    ),
-    TPACKcomp = rowMeans(
-      select(., all_of(list_items_i_tpack$TPACK_comp)),
-      na.rm = TRUE
-    ),
     TPACKgenai = rowMeans(
       select(., all_of(list_items_i_tpack$TPACK_genai)),
+      na.rm = TRUE
+    ),
+    TPACKce = rowMeans(
+      select(., all_of(list_items_i_tpack$TPACK_ce)),
       na.rm = TRUE
     ),
     Ethics = rowMeans(
@@ -534,9 +545,8 @@ outcomes <- c(
   "TK",
   "TPK",
   "TCK",
-  "TPACKknow",
-  "TPACKcomp",
   "TPACKgenai",
+  "TPACKce",
   "Ethics",
   "PU",
   "PU1",
