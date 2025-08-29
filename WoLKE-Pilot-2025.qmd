@@ -490,12 +490,12 @@ data <- data %>%
     TK = rowMeans(select(., all_of(list_items_i_tpack$TK)), na.rm = TRUE),
     TPK = rowMeans(select(., all_of(list_items_i_tpack$TPK)), na.rm = TRUE),
     TCK = rowMeans(select(., all_of(list_items_i_tpack$TCK)), na.rm = TRUE),
-    TPACKgenai = rowMeans(
-      select(., all_of(list_items_i_tpack$TPACK_genai)),
-      na.rm = TRUE
-    ),
     TPACKce = rowMeans(
       select(., all_of(list_items_i_tpack$TPACK_ce)),
+      na.rm = TRUE
+    ),
+    TPACKgenai = rowMeans(
+      select(., all_of(list_items_i_tpack$TPACK_genai)),
       na.rm = TRUE
     ),
     Ethics = rowMeans(
@@ -514,12 +514,21 @@ data <- data %>%
     )
   )
 
+# check missing values in TPACK and PU scales (NA means, not answered (-1 diff. answer, -9 not answered))
+data %>%
+  select(all_of(c(list_items_i_tpack, list_items_pu) %>% unlist)) %>%
+  summarise(across(everything(), ~ sum(is.na(.x)))) %>%
+  sum
+
 ```
 
 ## Analysis
 
 Im folgenden verwenden wir drei Kontraste: (0) Intercept = Gesamtdurchschnitt aller Gruppen, (1) Exp-Ø (MINT+Sprache)/2 vs. Control, (2) Sprache vs. MINT. Mit der Zeit-Interaktion testen wir, ob sich diese Unterschiede über die Zeit unterschiedlich entwickeln (Difference-in-Differences: Exp-Ø vs. Control sowie Sprache vs. MINT).
 ``` {r lmer MINT vs Sprache vs Kontrollgruppe}
+
+data <- data %>% droplevels() # drop unused factor levels
+
 ## define contrast Control vs Exp1+Exp2 - vermutlich bessere version, da die Estimates "stimmen"
 mat <- cbind(
   c(1 / 3, 1 / 3, 1 / 3), # Durchschnitt aller 3 Gruppen

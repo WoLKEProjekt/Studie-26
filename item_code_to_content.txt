@@ -1,4 +1,4 @@
-QUESTNNR    sprache oder mint
+QUESTNNR    sprache(-post) oder mint(-post)
 DE02        Ausschluss vergangenes Semester
 DE03_01     MINT KI Kompetenz
 DE03_02     MINT KI Kompetenz
