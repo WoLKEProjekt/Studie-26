@@ -7,7 +7,10 @@ page-layout: full
 document-css: false
 link-citations: true
 number-sections: true
-editor: visual
+toc: true
+csl: https://www.zotero.org/styles/apa
+bibliography: library.bib
+editor: source
 execute:
   cache: true
 format:
@@ -43,6 +46,9 @@ library(arsenal)
 library(forcats)
 library(psych)
 library(purrr)
+library(ggplot2)
+library(ggsci) # color palettes
+library(jtools) # theme_apa etc.
 source(file = "functions.r") # all outsourced funtions
 ```
 
@@ -554,8 +560,8 @@ outcomes <- c(
   "TK",
   "TPK",
   "TCK",
-  "TPACKgenai",
   "TPACKce",
+  "TPACKgenai",
   "Ethics",
   "PU",
   "PU1",
@@ -564,7 +570,7 @@ outcomes <- c(
   "PU4"
 )
 time <- "time"
-controls <- c("age", "gender", "location")
+controls <- c("gender", "semester", "location")
 
 # groups set as NA
 lmers_prepost_all <-
@@ -644,4 +650,55 @@ alpha_post_df <- tibble(
   std_alpha = map_dbl(alphas_post, ~ .x$total$std.alpha)
 )
 alpha_post_df
+```
+
+## Descriptive Plots
+
+### Reshape data to long format
+
+```{r reshape-long}
+data_long <- data %>%
+  pivot_longer(
+    cols = c(all_of(outcomes)),
+    names_to = "outcome",
+    values_to = "score"
+  )
+
+data_long <- data_long %>%
+  mutate(
+    outcome = factor(outcome, levels = outcomes)
+  )
+```
+
+```{r descriptive-plots}
+# TPACK
+p_tpack <- plot_outcome(
+  data_long %>% filter(!str_detect(outcome, "^(AILIT|PU)")),
+  scales_facet = "fixed"
+) +
+  ggtitle("Intelligent-TPACK")
+
+ggsave(
+  p_tpack + facet_wrap(~outcome, ncol = 3),
+  file = "figures/plot-tpack.pdf",
+  width = 8,
+  height = 10,
+  device = cairo_pdf
+)
+# AILIT and PU
+p_ailit <- plot_outcome(
+  data_long %>% filter(str_detect(outcome, "^(AILIT)"))
+) +
+  ggtitle("AI Literacy")
+
+p_pu <- plot_outcome(
+  data_long %>% filter(str_detect(outcome, "^(PU)")),
+  scales_facet = "fixed"
+) +
+  ggtitle("Perceived Usefulness")
+```
+
+```{r save-env }
+# save environment
+save.image("data/env-analysis.Rdata")
 ```
