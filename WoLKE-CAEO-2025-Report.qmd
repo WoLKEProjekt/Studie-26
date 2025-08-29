@@ -22,6 +22,8 @@ format:
     wrap: none
     default-image-extension: png
     date-format: long  
+    code-fold: true
+    code-tools: true
   docx: 
     toc: true
     toc-depth: 2
@@ -32,6 +34,7 @@ format:
     date-format: long
     keep-md: true
     echo: false
+    code-fold: true
 prefer-html: true
 ---
 
@@ -143,7 +146,7 @@ var_names <- list(
   gender = "Gender",
   age = "Age",
   semester = "Semester Number",
-  students = "Graduate Level",
+  students = "Study Level",
   isp = "Completed Integrated Semester Internship",
   subject1 = "Subject 1",
   subject2 = "Subject 2",
@@ -203,7 +206,7 @@ The translation and validation of the Intelligent-TPACK is reported in detail in
 ## Analysis
 We analyzed the interventions' efficacy in a multilevel analysis approach. To contrast the differences of students' change in the respective outcome measure over time, we implemented a linear mixed-effects regression model for each outcome measure, considering our $3$ factorial design. To account for the panel structure, that is, two test sessions, in the data, we used the random effects (RE) estimation method to estimate treatment effects, following CITATION.
 
-The raw data and *R* scripts detailing the analyses can be acccessed in the online supplement at <OSF>
+The raw data and *R* scripts detailing the analyses can be accessed in the online supplement at <OSF>.
 
 :::{.callout-note}
 Ist unser Design 3- oder 2-faktoriell?
@@ -211,10 +214,10 @@ Ist unser Design 3- oder 2-faktoriell?
 
 We implemented the two-level models with the students at level 1 (individual level) and the University at level 2 (class level). We addressed the clustering of time points within students by including random intercepts for students. The clustering of students within universities was addressed by including a dummy variable for the University. 
 
-To contrast the differences in change over time between the treatment groups (i.e., estimated treatment effect), we included the time-by-treatment interaction in the models. For this, we used a dummy-coded *treatment* variable using reversed Helmert contrasts to contrast the differences between (i) the *control* group and the *intervention* groups and (ii) between the two intervention groups. We set the *control* group as the reference group.
+To contrast the differences in change over time between the treatment groups (i.e., estimated treatment effect), we included the time-by-treatment interaction in the models. For this, we used a dummy-coded *treatment* variable using reversed Helmert contrasts to contrast the differences between (i) the *control* group and the *intervention* groups and (ii) between the two intervention groups. We set the control group as the reference group.
 
 Finally, we included variables as a covariate if they met the criteria for baseline equivalence in randomized controlled trials by the What Works Clearinghouse [@WWC2022]. That is, we included the variables as covariates if the difference between the groups was statistical significant, or if it exceeded $d>.05$.
-We tested for group differences concerning the following variables at baseline (pretest): age, semester, gender, study level (Bachelor vs. Master). We found for gender and semesters  statistically significant differences between the treamtment groups, see [@tbl-participants]. That is, we included the following covariates in the models: gender and semester.
+We tested for group differences concerning the following variables at baseline (pretest): age, gender, semester, and study level (Bachelor vs. Master). We found for gender and semesters  statistically significant differences between the treamtment groups, see [@tbl-participants]. That is, we included the following covariates in the models: gender and semester.
 
 That is, the final model for each outcome measure contained time, treatment, XYZ, University and the interaction of time and treatment as fixed effects and a random intercept for students, and was specified as follows:
 `lmer(outcome ~ time * treatment + age + semester + university + (1|student))`.
@@ -223,8 +226,25 @@ The criterion of statistical significance was set at α=.05.
 
 ### Data Preparation and Cleaning
 
+
+```{r}
+# get participants who only participated in pre or post test
+data_dropouts <- data_all %>%
+  group_by(code) %>%
+  summarise(
+    has_pre  = any(time == "pre"),
+    has_post = any(time == "post"),
+    .groups = "drop"
+  ) %>%
+  summarise(
+    n_pre_only  = sum(has_pre & !has_post),
+    n_post_only = sum(!has_pre & has_post),
+    n_both      = sum(has_pre & has_post)
+  )
+```
+
 For data cleaning, we applied the following steps: First, we investigated which students, based on their pseudonyms, did not participate in both test sessions. Based on a string distance analysis using the Levenshtein distance [@levenshtein1966], we identified pseudonyms that were likely to belong to the same student but were entered slightly differently (e.g., due to typos or students who moved during the semester, as the address was part of their pseudonym). We then manually checked these pseudonyms and merged them if we believe they belonged to the same student. This resulted in $n=XYZ$ students being merged.
-We then removed students who only participated at the pretest ($n=XYZ$) or only at the posttest ($n=XYZ$).
+We then removed students who only participated at the pretest ($n=`r data_dropouts$n_pre_only`$) or only at the posttest ($n=`r data_dropouts$n_post_only`$).
 Further, some students conducted the post test twice. In this case, we only considered their first response in the analyses and dropped the second.
 
 As for some items students could choose "I don't understand the item" as a response option, we recoded these responses as missing values ($n=XYZ$ responses).
@@ -238,9 +258,6 @@ We performed the statistical analyses in *R* [@R2024] using the following packag
 
 We used the *lme4* package [@bates2015] to fit linear mixed-effects models and the *broom.mixed* package [@bolker2024] to extract the results. Degrees of freedom and *p*-values were calculated using the *lmerTest* package [@kuznetsova2017] using Kenward-Roger's approximation for the denominator degrees of freedom. Pairwise comparisons between the treatment groups were computed using the *emmeans* package [@lenth2025].
 
-:::::: {.callout-important}
-Wollen wir Satterthwaite oder Kenward-Roger (konservativer in der Schätung) verwenden?
-:::
 
 # Results
 
@@ -297,8 +314,23 @@ effect_sizes
 ## AI Literacy
 Descriptive results of students' AI literacy scores are shown in [@fig-ai-lit], and the results of the linear mixed-effects models are listed in [@tbl-lmer-ailit-summary].
 
-```{r fig-ai-lit, echo=FALSE, fig.cap="Descriptive Statistics of Students' AI Literacy Scores Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=4}
-p_ailit + facet_wrap(~outcome, ncol =3, scales="free")  + labs(y = "Score")  + theme(legend.position = "bottom")
+```{r fig-ai-lit, echo=FALSE, fig.cap="Descriptive Statistics of Students' AI Literacy Scores Over Time by Treatment Group.", out.width="80%",fig.width=6, fig.height=4.5}
+plot_outcome(
+  data_long %>% filter(outcome %in% c("AILIT", "AILITWolke")) %>%
+    mutate(
+      outcome = factor(
+        outcome,
+        levels = c("AILIT", "AILITWolke"),
+        labels = c("AILIT", "AILIT - Study-Specific")
+      )
+    ),
+  ylab="Score"
+) +
+  ggtitle("AI Literacy") +  theme(legend.position = "bottom")
+
+#p_ailit %+% + facet_wrap(~outcome, ncol =2, scales="free")  + labs(y = "Score")  + theme(legend.position = "bottom")
+
+# TODO: auch AI Lit Short für Online Supplement
 ```
 
 ```{r tab.layout="autofit"}
@@ -306,7 +338,7 @@ p_ailit + facet_wrap(~outcome, ncol =3, scales="free")  + labs(y = "Score")  + t
 #| tbl-cap: "Summary of Linear Mixed-Effects Models for AI Literacy."
 
 ft_ailit <- modelsummary_models(
-  lmers_prepost_all[grepl("^(AI)", names(lmers_prepost_all))],
+  lmers_prepost_all[names(lmers_prepost_all) %in% c("AILIT", "AILITWolke")],
   ddf = "kr",
   output = modelsummary_output,
   # coef_rename = c("genderMännlich" = "Geschlecht")
@@ -322,27 +354,37 @@ ft_ailit
 We did not find a significant main effect of treatment on students' change in AI literacy, `r report_lmer_anova(lmers_prepost_all[["AILIT"]])`. Neither did the control group's change differ significantly from both intervention groups, 
 `r report_lmer(lmers_prepost_all[["AILIT"]], term = tc1)`, nor did the change differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["AILIT"]], term = tc2)`.
 
+However, as [@fig-ai-lit] shows, backened by within-group contrasts analyses contrasting the AI literacy score between pre- and posttest (see Online Supplement), students in all treatment conditions improved their AI literacy, while the change in pre-service STEM teachers was significant, `r report_contrast(ailit_within_contrasts[[1]], 2)`.
+
 ### AI Literacy -- Study-Specific Subset
 For the study-specific subset of the AI literacy items, we also did not find a significant main effect of treatment on students' change in AI literacy, `r report_lmer_anova(lmers_prepost_all[["AILITWolke"]])`. The control group's change did not differ significantly from both intervention groups, 
 `r report_lmer(lmers_prepost_all[["AILITWolke"]], term = tc1)`, nor did the change between the two intervention groups, `r report_lmer(lmers_prepost_all[["AILITWolke"]], term = tc2)`.
 
-#### Pairwise Contrasts Within Groups
+```{r, results="asis"}
+if(!is_word)
+  cat("#### Pairwise Contrasts Within Groups")
+```
+
 ```{r ailit-within-contrasts}
 
 # pairwise within contrasts (no multiplicity adjustment)
 ailit_within_contrasts <- lapply(lmers_prepost_all[1:3], function(m) {
   emmeans(m, ~ time | intervention) %>% contrast(method = "revpairwise", adjust = "none")
 })
-print(ailit_within_contrasts)
+if (!is_word) print(ailit_within_contrasts)
 ```
 
-#### Pairwise Contrasts Between Groups
+```{r, results="asis"}
+if(!is_word)
+  cat("#### Pairwise Contrasts Between Groups")
+```
+
 ```{r ailit-between-contrasts}
 # pairwise between contrasts (no multiplicity adjustment)
 ailit_between_contrasts <- lapply(lmers_prepost_all[1:3], function(m) {
   emmeans(m, ~ intervention * time) %>% contrast(interaction = "revpairwise", adjust = "none")
 })
-print(ailit_between_contrasts)
+if(!is_word) print(ailit_between_contrasts)
 ```
 
 However, as can be seen in [@fig-ai-lit], students in both intervention groups showed descriptively higher increases in AI literacy compared to the control group. When performing post-hoc contrasts, we found that students in the STEM course had a marginally significantly higher increase in the study-specific AI literacy compared to the control group, `r report_contrast(ailit_between_contrasts[[2]], 1)`, while the difference between students in the language course and the control group was insignificant, `r report_contrast(ailit_between_contrasts[[2]],2)`. All contrast analyses can be accessed in the online supplement at <OSF>.
@@ -390,6 +432,7 @@ if (is_word) {
 }
 ft
 ```
+
 :::
 
 ### Intelligent TK
@@ -424,6 +467,12 @@ p_pu + facet_wrap(~outcome, ncol =3, scales="fixed", labeller= as_labeller(c(
   "PU4" = "PU4: Usefulness for Work"
 )))  + labs(y = "Rating") # + theme(legend.position = "bottom")
 ```
+```{r pu-contrasts}
+pu_between_contrasts <- lapply(lmers_prepost_all[grepl("^(PU)", names(lmers_prepost_all))], function(m) {
+  emmeans(m, ~ intervention * time) %>% contrast(interaction = "revpairwise", adjust = "none")
+})
+if(!is_word) print(pu_between_contrasts)
+```
 
 ::: {.landscape}
 ```{r tab.layout="autofit"}
@@ -438,15 +487,25 @@ ft_pu <- modelsummary_models(
 ) # %>%   kableExtra::scroll_box(width = "100%")
 
 if (is_word) {
-  ft_pu <- ft_pu %>% adjust_table_for_word(width=.75)
+  ft_pu <- ft_pu %>% adjust_table_for_word()
 }
 ft_pu
+```
+
+```{r pu-tab-models}
+#| tbl-cap: "Summary of Linear Mixed-Effects Models for Perceived Usefulness."
+tab_models(lmers_prepost_all[grepl("^(PU)", names(lmers_prepost_all))])
 ```
 
 :::
 
 For the overall perceived usefulness, we did not find a significant main effect of treatment on students' change in perceived usefulness, `r report_lmer_anova(lmers_prepost_all[["PU"]])`. Neither did the control group's change differ significantly from both intervention groups, `r report_lmer(lmers_prepost_all[["PU"]], term = tc1)`, nor did the change differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["PU"]], term = tc2)`.
 
+However, when investigating the individual items of perceived usefulness, we found that students in the intervention groups showed marginally significant higher increases compared to the control group, `r report_lmer(lmers_prepost_all[["PU1"]], term = tc1)` and `r report_lmer(lmers_prepost_all[["PU2"]], term = tc1)`, whereas the change did not differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["PU1"]], term = tc2)` and `r report_lmer(lmers_prepost_all[["PU2"]], term = tc2)`, respectively, whereas we found no treatment effect for *PU3*  and *PU4*, see [@tbl-lmer-pu-summary].
+
+::: {.callout-note}
+wir können für uns noch die Kontraste für PU anschauen. Hier ist interessant, dass für PU1 stem > control und PU2 language > control
+:::
 
 ```{r results="asis", include=F}
 stargazer_models(lmer_pu %>% list)
@@ -502,21 +561,24 @@ check_demo_vars <- function(
 }
 check_demo_vars(
   data,
-  demo_vars = c("age", "semester", "gender", "students"),
+  demo_vars = c("age", "semester", "gender", "students", "intervention", "location"),
   id = "code",
   show_only_diff = T
 )
 ```
 
 
-```{r rerun-models-with-graduate-level}
-lmers_prepost_all_graduate_level <- lapply(lmers_prepost_all, function(m) {
+::: {.landscape}
+```{r rerun-models-with-study-level}
+lmers_prepost_all_study_level <- lapply(lmers_prepost_all, function(m) {
   update(m, . ~ . - semester + students)
 })
 modelsummary_models(
-  lmers_prepost_all_graduate_level,
+  lmers_prepost_all_study_level,
   ddf = "kr",
   output = modelsummary_output
 )
 ```
+
+::: 
 

@@ -302,6 +302,7 @@ tab_models <- function(
   models,
   string.est = "b",
   p.val = "kr",
+  p.style = "numeric_stars",
   title = NULL,
   vcov.fun = NULL,
   vcov.args = NULL,
@@ -317,7 +318,7 @@ tab_models <- function(
     string.stat = "t",
     show.se = T,
     string.se = "SE",
-    #p.style = "numeric_stars",
+    p.style = p.style,
     vcov.fun = vcov.fun,
     vcov.args = vcov.args,
     df.method = df.method
