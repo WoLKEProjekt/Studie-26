@@ -23,7 +23,7 @@ report_contrast <- function(contrast, idx = 1) {
   t <- d$t.ratio %>% apa_num
   p_val <- d$p.value %>% apa_p(add_equals = TRUE)
 
-  paste0("$b =", est, "$, $SE = ", se, "$, t=", t, ", $p ", p_val, "$")
+  paste0("$b =", est, "$, $SE = ", se, "$, $t=", t, "$, $p ", p_val, "$")
 }
 #' Report ANOVA results for a fixed effect in an lmer model
 #'

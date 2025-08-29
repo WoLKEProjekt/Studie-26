@@ -67,11 +67,68 @@ source(file = "functions.r") # all outsourced funtions
 ```{r load-data}
 # load "env-analysis.RData" which contains all data needed for the analysis
 load(file = "data/env-analysis.RData")
-names(lmers_prepost_all) <- outcomes
 
+names(lmers_prepost_all) <- outcomes
 # get the number of the terms in the model for the two treatment contrasts
 tc2 <- nrow(summary(lmers_prepost_all[[1]])$coefficients)
 tc1 <- tc2 - 1
+```
+
+```{r rerun-models-with-proper-contrasts}
+data_wtf <- data %>%
+  droplevels %>%
+  mutate(
+    location = factor(
+      location,
+      levels = c("PH Schwäbisch Gmünd", "PH Ludwigsburg")
+    )
+  )
+
+## define contrast Control vs Exp1+Exp2 - vermutlich bessere version, da die Estimates "stimmen"
+mat <- cbind(
+  c(1 / 3, 1 / 3, 1 / 3), # Durchschnitt aller 3 Gruppen
+  c(-1, .5, .5), # Vergleich Control vs Mittel der beiden Interventions-Gruppen
+  c(0, -1, 1)
+) # Vergleich Sprache vs MINT
+contrasts.CvsExp <- solve(t(mat))[, -1]
+colnames(contrasts.CvsExp) <- c("-c+STEM_language", "-STEM+language")
+contrasts(data_wtf$intervention) <- contrasts.CvsExp
+
+# GENDER
+# female: -1/2
+# male : +1/2
+contrasts.gender <- cbind(c(-1 / 2, 1 / 2))
+colnames(contrasts.gender) <- c("-m+f")
+contrasts(data_wtf$gender) <- contrasts.gender
+
+# LOCATION
+# SG UE: -1/2
+# L UE: +1/2
+contrasts.location <- cbind(c(-1 / 2, 1 / 2))
+colnames(contrasts.location) <- c("-SGUE+LUE")
+contrasts(data_wtf$location) <- contrasts.location
+
+# TIME
+# pre: -1/2
+# post: +1/2
+contrasts.time <- cbind(c(-1 / 2, 1 / 2))
+colnames(contrasts.time) <- c("-pre+post")
+contrasts(data_wtf$time) <- contrasts.time
+
+data <- data_wtf
+# refit all lmer_prepost_all with new data
+lmers_prepost_all <- lapply(
+  outcomes,
+  fit_lmer,
+  groups,
+  time,
+  controls,
+  random_terms_lmer,
+  NULL,
+  data = data
+)
+names(lmers_prepost_all) <- outcomes
+
 ```
 
 ```{r prepare-output}
@@ -88,9 +145,9 @@ modelsummary_output <- ifelse(
   ifelse(knitr::is_html_output(), "kableExtra", "flextable")
 )
 
-adjust_table_for_word <- function(ft, width=0) {
+adjust_table_for_word <- function(ft, width = 0) {
   ft <- flextable::autofit(ft)
-  ft <- flextable::set_table_properties(ft, layout = "autofit", width=width)
+  ft <- flextable::set_table_properties(ft, layout = "autofit", width = width)
   ft <- flextable::fontsize(ft, size = 10, part = "header")
   ft <- flextable::fontsize(ft, size = 8, part = "body")
   ft
@@ -116,7 +173,8 @@ data_participants <- data %>%
     semester_max = max(semester, na.rm = T),
     semester_mean = mean(semester, na.rm = T) %>% round(2),
     semester_sd = sd(semester, na.rm = T) %>% round(2)
-    ) %>% ungroup()
+  ) %>%
+  ungroup()
 ```
 
 
@@ -177,7 +235,13 @@ kable(
           Ethics +
           AILIT +
           PU,
-      data %>% filter(time == "pre") %>% mutate(gender = factor(gender, labels=c("Female","Male")), students=factor(students, labels=c("Bachelor", "Master"))) %>% droplevels(),
+      data %>%
+        filter(time == "pre") %>%
+        mutate(
+          gender = factor(gender, labels = c("Female", "Male")),
+          students = factor(students, labels = c("Bachelor", "Master"))
+        ) %>%
+        droplevels(),
       cat.test = "chisq",
       chisq.correct = T,
       control = tableby.control(test = T, total = T, digits = 2)
@@ -219,7 +283,7 @@ To contrast the differences in change over time between the treatment groups (i.
 Finally, we included variables as a covariate if they met the criteria for baseline equivalence in randomized controlled trials by the What Works Clearinghouse [@WWC2022]. That is, we included the variables as covariates if the difference between the groups was statistical significant, or if it exceeded $d>.05$.
 We tested for group differences concerning the following variables at baseline (pretest): age, gender, semester, and study level (Bachelor vs. Master). We found for gender and semesters  statistically significant differences between the treamtment groups, see [@tbl-participants]. That is, we included the following covariates in the models: gender and semester.
 
-That is, the final model for each outcome measure contained time, treatment, XYZ, University and the interaction of time and treatment as fixed effects and a random intercept for students, and was specified as follows:
+That is, the final model for each outcome measure contained time, treatment, semester, University and the interaction of time and treatment as fixed effects and a random intercept for students, and was specified as follows:
 `lmer(outcome ~ time * treatment + age + semester + university + (1|student))`.
 
 The criterion of statistical significance was set at α=.05.
@@ -232,24 +296,26 @@ The criterion of statistical significance was set at α=.05.
 data_dropouts <- data_all %>%
   group_by(code) %>%
   summarise(
-    has_pre  = any(time == "pre"),
+    has_pre = any(time == "pre"),
     has_post = any(time == "post"),
     .groups = "drop"
   ) %>%
   summarise(
-    n_pre_only  = sum(has_pre & !has_post),
+    n_pre_only = sum(has_pre & !has_post),
     n_post_only = sum(!has_pre & has_post),
-    n_both      = sum(has_pre & has_post)
+    n_both = sum(has_pre & has_post)
   )
 ```
 
-For data cleaning, we applied the following steps: First, we investigated which students, based on their pseudonyms, did not participate in both test sessions. Based on a string distance analysis using the Levenshtein distance [@levenshtein1966], we identified pseudonyms that were likely to belong to the same student but were entered slightly differently (e.g., due to typos or students who moved during the semester, as the address was part of their pseudonym). We then manually checked these pseudonyms and merged them if we believe they belonged to the same student. This resulted in $n=XYZ$ students being merged.
+For data cleaning, we applied the following steps: First, we investigated which students, based on their pseudonyms, did not participate in both test sessions. Based on a string distance analysis using the Levenshtein distance [@levenshtein1966], we identified pseudonyms that were likely to belong to the same student but were entered slightly differently (e.g., due to typos or students who moved during the semester, as the address was part of their pseudonym). We then manually checked these pseudonyms and merged them if we believe they belonged to the same student. This resulted in $n=24$ students being merged.
 We then removed students who only participated at the pretest ($n=`r data_dropouts$n_pre_only`$) or only at the posttest ($n=`r data_dropouts$n_post_only`$).
 Further, some students conducted the post test twice. In this case, we only considered their first response in the analyses and dropped the second.
 
-As for some items students could choose "I don't understand the item" as a response option, we recoded these responses as missing values ($n=XYZ$ responses).
+As for some self-constructed items students could choose "I don't understand the item" as a response option, we recoded these responses as missing values ($n=`r data %>%
+  select(all_of(c(list_items_i_tpack, list_items_pu)%>%unlist)) %>%
+  summarise(across(everything(), ~ sum(is.na(.x)))) %>% sum`$ responses to individual items).
 
-For the Intelligent TPACK, AI ethics and perceived usefulness (sub)scales, we calculated the mean score across all items of the respective (sub)scale per student. For AI literacy, we calculated the sum score across all items. We additionally calculated the sum score for the items of the AI literacy subscale that matched the content of the intervention.
+For the Intelligent TPACK, AI ethics and perceived usefulness (sub)scales, we calculated the mean score across all items of the respective (sub)scale per student. For AI literacy, we calculated the sum score across all items. We additionally calculated the sum score for the subset of items of the AI literacy   that that directly reflect the topics addressed in the course, see SECTION MATERIALS.
 
 ### Statistical Software
 We performed the statistical analyses in *R* [@R2024] using the following packages:
@@ -273,10 +339,10 @@ The results of the linear mixed-effects models for each outcome measure are pres
 ## Effect Sizes
 
 ```{r effect-sizes}
-dhat <- function(model, idx=3, type=2){
+dhat <- function(model, idx = 3, type = 2) {
   f <- abs(tail(summary(model)$coefficients, idx))[1]
-  v <- sqrt(tail(anova(model, type=type)[["Mean Sq"]],1))
-  return (f/v)
+  v <- sqrt(tail(anova(model, type = type)[["Mean Sq"]], 1))
+  return(f / v)
 }
 #' Compute standardized effect size d for one fixed effect in an lmer model, based on https://pmc.ncbi.nlm.nih.gov/articles/PMC6646942/
 #'
@@ -288,26 +354,31 @@ dhat <- function(model, idx=3, type=2){
 #' @return numeric, effect size d
 lmer_d <- function(model, effect, include_residual = TRUE) {
   stopifnot(effect %in% names(lme4::fixef(model)))
-  
+
   # numerator
   est <- unname(lme4::fixef(model)[effect])
-  
+
   # variance components
-  vc <- as.data.frame(lme4::VarCorr(model))   # grp, var1, var2, vcov, sdcor
+  vc <- as.data.frame(lme4::VarCorr(model)) # grp, var1, var2, vcov, sdcor
   var_random <- sum(vc$vcov, na.rm = TRUE)
-  
+
   # residual
   if (!include_residual) {
     var_random <- var_random - sigma(model)^2
   }
-  
+
   d <- est / sqrt(var_random)
   return(d)
 }
 
-effect_sizes_dhat_old <-sapply(lmers_prepost_all, dhat,idx=2) %>% round(2)
+effect_sizes_dhat_old <- sapply(lmers_prepost_all, dhat, idx = 2) %>% round(2)
 
-effect_sizes <- sapply(lmers_prepost_all, lmer_d,"intervention-C+MINT_Sprache:timepost") %>% round(2)
+effect_sizes <- sapply(
+  lmers_prepost_all,
+  lmer_d,
+  "intervention-c+STEM_language:time-pre+post"
+) %>%
+  round(2)
 effect_sizes
 ```
 
@@ -316,17 +387,19 @@ Descriptive results of students' AI literacy scores are shown in [@fig-ai-lit], 
 
 ```{r fig-ai-lit, echo=FALSE, fig.cap="Descriptive Statistics of Students' AI Literacy Scores Over Time by Treatment Group.", out.width="80%",fig.width=6, fig.height=4.5}
 plot_outcome(
-  data_long %>% filter(outcome %in% c("AILIT", "AILITWolke")) %>%
+  data_long %>%
+    filter(outcome %in% c("AILIT", "AILITWolke")) %>%
     mutate(
       outcome = factor(
         outcome,
         levels = c("AILIT", "AILITWolke"),
-        labels = c("AILIT", "AILIT - Study-Specific")
+        labels = c("AI Literacy - Full Scale", "AI Literacy - Study-Specific")
       )
     ),
-  ylab="Score"
+  ylab = "Score"
 ) +
-  ggtitle("AI Literacy") +  theme(legend.position = "bottom")
+  ggtitle("AI Literacy") +
+  theme(legend.position = "bottom")
 
 #p_ailit %+% + facet_wrap(~outcome, ncol =2, scales="free")  + labs(y = "Score")  + theme(legend.position = "bottom")
 
@@ -345,7 +418,7 @@ ft_ailit <- modelsummary_models(
 ) # %>%   kableExtra::scroll_box(width = "100%")
 
 if (is_word) {
-  ft_ailit <- adjust_table_for_word(ft_ailit, width=.75)
+  ft_ailit <- adjust_table_for_word(ft_ailit, width = .75)
 }
 ft_ailit
 ```
@@ -354,48 +427,56 @@ ft_ailit
 We did not find a significant main effect of treatment on students' change in AI literacy, `r report_lmer_anova(lmers_prepost_all[["AILIT"]])`. Neither did the control group's change differ significantly from both intervention groups, 
 `r report_lmer(lmers_prepost_all[["AILIT"]], term = tc1)`, nor did the change differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["AILIT"]], term = tc2)`.
 
-However, as [@fig-ai-lit] shows, backened by within-group contrasts analyses contrasting the AI literacy score between pre- and posttest (see Online Supplement), students in all treatment conditions improved their AI literacy, while the change in pre-service STEM teachers was significant, `r report_contrast(ailit_within_contrasts[[1]], 2)`.
+However, as [@fig-ai-lit] shows, backened by within-group contrast analyses contrasting the AI literacy score between pre- and posttest (see Online Supplement), students in all treatment conditions improved their AI literacy, while the change in pre-service STEM teachers was significant, `r report_contrast(ailit_within_contrasts[[1]], 2)`.
 
 ### AI Literacy -- Study-Specific Subset
 For the study-specific subset of the AI literacy items, we also did not find a significant main effect of treatment on students' change in AI literacy, `r report_lmer_anova(lmers_prepost_all[["AILITWolke"]])`. The control group's change did not differ significantly from both intervention groups, 
 `r report_lmer(lmers_prepost_all[["AILITWolke"]], term = tc1)`, nor did the change between the two intervention groups, `r report_lmer(lmers_prepost_all[["AILITWolke"]], term = tc2)`.
 
 ```{r, results="asis"}
-if(!is_word)
+if (!is_word) {
   cat("#### Pairwise Contrasts Within Groups")
+}
 ```
 
 ```{r ailit-within-contrasts}
 
 # pairwise within contrasts (no multiplicity adjustment)
 ailit_within_contrasts <- lapply(lmers_prepost_all[1:3], function(m) {
-  emmeans(m, ~ time | intervention) %>% contrast(method = "revpairwise", adjust = "none")
+  emmeans(m, ~ time | intervention) %>%
+    contrast(method = "revpairwise", adjust = "none")
 })
-if (!is_word) print(ailit_within_contrasts)
+if (!is_word) {
+  print(ailit_within_contrasts)
+}
 ```
 
 ```{r, results="asis"}
-if(!is_word)
+if (!is_word) {
   cat("#### Pairwise Contrasts Between Groups")
+}
 ```
 
 ```{r ailit-between-contrasts}
 # pairwise between contrasts (no multiplicity adjustment)
 ailit_between_contrasts <- lapply(lmers_prepost_all[1:3], function(m) {
-  emmeans(m, ~ intervention * time) %>% contrast(interaction = "revpairwise", adjust = "none")
+  emmeans(m, ~ intervention * time) %>%
+    contrast(interaction = "revpairwise", adjust = "none")
 })
-if(!is_word) print(ailit_between_contrasts)
+if (!is_word) {
+  print(ailit_between_contrasts)
+}
 ```
 
 However, as can be seen in [@fig-ai-lit], students in both intervention groups showed descriptively higher increases in AI literacy compared to the control group. When performing post-hoc contrasts, we found that students in the STEM course had a marginally significantly higher increase in the study-specific AI literacy compared to the control group, `r report_contrast(ailit_between_contrasts[[2]], 1)`, while the difference between students in the language course and the control group was insignificant, `r report_contrast(ailit_between_contrasts[[2]],2)`. All contrast analyses can be accessed in the online supplement at <OSF>.
 
 
 ## Intelligent TPACK and AI Ethics
-The descriptive results of students' ratings of perceived knowledge in Intelligent TPACK and AI ethics are shown in [@fig-tpack], and [@tbl-lmer-tpack-summary] lists the results of the linear mixed-effects models.
+The descriptive results of students' ratings of perceived knowledge in Intelligent TPACK and AI ethics are shown in [@fig-tpack], and [@tbl-lmer-tpack-summary] lists the results of the linear mixed-effects models. As can be seen in [@fig-tpack], all pre-service teachers reported their intelligent TPACK knowledge to be around or below the middle of the scale at the pretest, while the intervention groups reported, on average, values significantly higher than the middle value of the scale at the posttest.
 
-For all subscales related to Intelligent TPACK and EI ethics, that is, Intelligent TK, Intelligent TPK, Intelligent TCK, Intelligent TPACK, and AI ethics, we found a significant main effect of treatment on student' change on the respective subscales. We found significantly higher increases in students' Intelligent TPACK subscales in both intervention groups compared to the control group, whereas the intervention groups did not differ significantly from each other, see [@tbl-lmer-tpack-summary] for an overview.
+For all subscales related to Intelligent TPACK and AI ethics, that is, Intelligent TK, Intelligent TPK, Intelligent TCK, Intelligent TPACK, and AI ethics, we found a significant main effect of treatment on student' change on the respective subscales. We found significantly higher increases in students' Intelligent TPACK subscales in both intervention groups compared to the control group, whereas the intervention groups did not differ significantly from each other, see [@tbl-lmer-tpack-summary] for an overview.
 
-```{r fig-tpack, echo=FALSE, fig.cap="Descriptive Statistics of Students' Intelligent TPACK and AI Ethics Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=9}
+```{r fig-tpack, echo=FALSE, fig.cap="Descriptive Statistics of Students' Intelligent TPACK and AI Ethics Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=6.5}
 p_tpack +
   facet_wrap(
     ~outcome,
@@ -406,13 +487,14 @@ p_tpack +
         TK = "Intelligent TK",
         TCK = "Intelligent TCK",
         TPK = "Intelligent TPK",
-        TPACKknow = "iTPACK - Knowledge",
-        TPACKcomp = "iTPACK - Competence",
+        TPACKce = "Intelligent TPACK - Core",
         TPACKgenai = "iTPACK - Generative AI",
         Ethics = "AI Ethics"
       )
     )
-  ) + ggtitle("Intelligent TPACK and AI Ethics")
+  ) +
+  ggtitle("Intelligent TPACK and AI Ethics") +
+  theme(legend.position = "bottom")
 ```
 
 ::: {.landscape}
@@ -428,7 +510,7 @@ ft <- modelsummary_models(
 ) # %>%   kableExtra::scroll_box(width = "100%")
 
 if (is_word) {
-  ft <- adjust_table_for_word(ft, width=1)
+  ft <- adjust_table_for_word(ft, width = 1)
 }
 ft
 ```
@@ -448,9 +530,9 @@ We found a significant main effect of treatment on students' change in intellige
 We found a significant higher increase in students' intelligent TPK in both intervention groups compared to the control group, `r report_lmer(lmers_prepost_all[["TCK"]], term = tc1)`, but the change did not differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["TCK"]], term = tc2)`.
 
 ### Intelligent TPACK
-For all subscales of the Intelligent TPACK, that is, students' TPACK *knowledge*, their perceived *competence* in integrating AI tools teaching their subject, and their perceived competence of  applying *generative AI* in teaching their subject, we found a significant main effect of treatment on students' change on the respective subscales, *TPACK knowledge*: `r report_lmer_anova(lmers_prepost_all[[5]])`, *TPACK competence*: `r report_lmer_anova(lmers_prepost_all[[6]])`, and *TPACK related to generative AI*: `r report_lmer_anova(lmers_prepost_all[[7]])`.
+For both subscales of the Intelligent TPACK, that is, students' general TPACK and their perceived competence of applying *generative AI* in teaching their subject, we found a significant main effect of treatment on students' change on the respective subscales, *TPACK*: `r report_lmer_anova(lmers_prepost_all[["TPACKce"]])`, and *TPACK related to generative AI*: `r report_lmer_anova(lmers_prepost_all[["TPACKgenai"]])`.
 
-For all subscales, we found the same pattern that students' change in Intelligent TPACK subscales differed significantly between the control group and the two intervention groups, with students in the intervention groups having a significantly higher increase than the control group, whereas the intervention groups did not differ significantly from each other. That is, for *TPACK knoweldge*:  `r report_lmer(lmers_prepost_all[[5]], term = tc1)` and `r report_lmer(lmers_prepost_all[[5]], term = tc2)`; *TPACK competence*: `r report_lmer(lmers_prepost_all[["TPACKgenai"]], term = tc1)` and `r report_lmer(lmers_prepost_all[["TPACKgenai"]], term=tc2)`; and *TPACK related to generative AI*, `r report_lmer(lmers_prepost_all[["TPACKgenai"]], term = tc1)` and `r report_lmer(lmers_prepost_all[[7]], term = tc2)`.
+For both subscales, we found the same pattern that students' change in Intelligent TPACK differed significantly between the control group and the two intervention groups, with students in the intervention groups having a significantly higher increase than the control group, whereas the intervention groups did not differ significantly from each other. That is, for *TPACK*:  `r report_lmer(lmers_prepost_all[["TPACKce"]], term = tc1)` and `r report_lmer(lmers_prepost_all[["TPACKce"]], term = tc2)`; and *TPACK related to generative AI*, `r report_lmer(lmers_prepost_all[["TPACKgenai"]], term = tc1)` and `r report_lmer(lmers_prepost_all[[7]], term = tc2)`.
 
 ### AI Ethics
 For ethics related to the use of AI in education, we found a significant main effect of treatment on students' change in **XYZ**, `r report_lmer_anova(lmers_prepost_all[["Ethics"]])`. We found a significant higher increase in students' **XYZ** in the intervention groups compared to the control group, `r report_lmer(lmers_prepost_all[["Ethics"]], term = tc1)`, whereas the change did not differ significantly between the two intervention groups, `r report_lmer(lmers_prepost_all[["Ethics"]], term = tc2)`.
@@ -459,19 +541,33 @@ For ethics related to the use of AI in education, we found a significant main ef
 Descriptive results of students' perceived usefulness of XYZ are listed in [@fig-pu], while the results of the linear mixed-effects models for perceived usefulness are presented in [@tbl-lmer-pu-summary].
 
 ```{r fig-pu, echo=FALSE, fig.cap="Descriptive Statistics of Students' Perceived Usefulness Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=6}
-p_pu + facet_wrap(~outcome, ncol =3, scales="fixed", labeller= as_labeller(c(
-  "PU"  = "PU: Perceived Usefulness",
-  "PU1" = "PU1: Increases Teaching Quality",
-  "PU2" = "PU2: Reduces Workload",
-  "PU3" = "PU3: Increases Effectiveness",
-  "PU4" = "PU4: Usefulness for Work"
-)))  + labs(y = "Rating") # + theme(legend.position = "bottom")
+p_pu +
+  facet_wrap(
+    ~outcome,
+    ncol = 3,
+    scales = "fixed",
+    labeller = as_labeller(c(
+      "PU" = "PU: Perceived Usefulness",
+      "PU1" = "PU1: Increases Teaching Quality",
+      "PU2" = "PU2: Reduces Workload",
+      "PU3" = "PU3: Increases Effectiveness",
+      "PU4" = "PU4: Usefulness for Work"
+    ))
+  ) +
+  labs(y = "Rating") # + theme(legend.position = "bottom")
 ```
-```{r pu-contrasts}
-pu_between_contrasts <- lapply(lmers_prepost_all[grepl("^(PU)", names(lmers_prepost_all))], function(m) {
-  emmeans(m, ~ intervention * time) %>% contrast(interaction = "revpairwise", adjust = "none")
-})
-if(!is_word) print(pu_between_contrasts)
+
+```{r  pu - contrasts}
+pu_between_contrasts <- lapply(
+  lmers_prepost_all[grepl("^(PU)", names(lmers_prepost_all))],
+  function(m) {
+    emmeans(m, ~ intervention * time) %>%
+      contrast(interaction = "revpairwise", adjust = "none")
+  }
+)
+if (!is_word) {
+  print(pu_between_contrasts)
+}
 ```
 
 ::: {.landscape}
@@ -561,7 +657,14 @@ check_demo_vars <- function(
 }
 check_demo_vars(
   data,
-  demo_vars = c("age", "semester", "gender", "students", "intervention", "location"),
+  demo_vars = c(
+    "age",
+    "semester",
+    "gender",
+    "students",
+    "intervention",
+    "location"
+  ),
   id = "code",
   show_only_diff = T
 )
