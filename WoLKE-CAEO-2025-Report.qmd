@@ -280,11 +280,11 @@ We implemented the two-level models with the students at level 1 (individual lev
 
 To contrast the differences in change over time between the treatment groups (i.e., estimated treatment effect), we included the time-by-treatment interaction in the models. For this, we used a dummy-coded *treatment* variable using reversed Helmert contrasts to contrast the differences between (i) the *control* group and the *intervention* groups and (ii) between the two intervention groups. We set the control group as the reference group.
 
-Finally, we included variables as a covariate if they met the criteria for baseline equivalence in randomized controlled trials by the What Works Clearinghouse [@WWC2022]. That is, we included the variables as covariates if the difference between the groups was statistical significant, or if it exceeded $d>.05$.
-We tested for group differences concerning the following variables at baseline (pretest): age, gender, semester, and study level (Bachelor vs. Master). We found for gender and semesters  statistically significant differences between the treamtment groups, see [@tbl-participants]. That is, we included the following covariates in the models: gender and semester.
+Finally, we included variables as a covariate if they met the criteria for baseline equivalence in randomized controlled trials by the What Works Clearinghouse [@WWC2022]. That is, we included the variables as covariates if the difference between the groups was statistically significant, or if it exceeded $d>.05$.
+We tested for group differences concerning the following variables at baseline (pretest): age, gender, semester, and study level (Bachelor vs. Master). We found for gender and semesters  statistically significant differences between the treamtment groups, see [@tbl-participants]. We thus included the following covariates in the models: gender and semester.
 
-That is, the final model for each outcome measure contained time, treatment, semester, University and the interaction of time and treatment as fixed effects and a random intercept for students, and was specified as follows:
-`lmer(outcome ~ time * treatment + age + semester + university + (1|student))`.
+That is, the final model for each outcome measure contained time, treatment, gender, semester, University and the interaction of time and treatment as fixed effects and a random intercept for students, and was specified as follows:
+`lmer(outcome ~ time * treatment + gender + semester + university + (1|student))`.
 
 The criterion of statistical significance was set at α=.05.
 
@@ -590,7 +590,9 @@ ft_pu
 
 ```{r pu-tab-models}
 #| tbl-cap: "Summary of Linear Mixed-Effects Models for Perceived Usefulness."
-tab_models(lmers_prepost_all[grepl("^(PU)", names(lmers_prepost_all))])
+
+lmers_pu <- lmers_prepost_all[grepl("^(PU)", names(lmers_prepost_all))]
+tab_models(lmers_pu)
 ```
 
 :::
@@ -604,13 +606,81 @@ wir können für uns noch die Kontraste für PU anschauen. Hier ist interessant,
 :::
 
 ```{r results="asis", include=F}
-stargazer_models(lmer_pu %>% list)
+stargazer_models(lmers_pu)
 ```
 
 # Discussion
 
 # Playground
 
+## Reflection
+```{r reflection}
+refs <- c("Ref", list_items_ref %>% unlist)
+lms_reflection <- lapply(
+  refs,                        # a character vector of column names
+  function(x) {
+    f <- as.formula(paste(x, "~ intervention + gender + semester"))
+    lm(f, data %>% filter(time == "post"))
+  }
+)
+
+modelsummary_models(lms_reflection)
+
+# pairwise between contrasts (no multiplicity adjustment)
+refl_between_contrasts <- lapply(lms_reflection, function(m) {
+  emmeans(m, ~ intervention) %>%
+    contrast(interaction = "pairwise", adjust = "none")
+})
+if (!is_word) {
+  print(refl_between_contrasts)
+}
+```
+```{r plot-reflection, fig.height=8}
+# for all of refs, do a boxplot of ref ~ intervention using ggplot2
+data_long_refl <- data %>%
+  filter(time == "post") %>%
+  pivot_longer(
+    cols = all_of(unname(refs)), # <-- strip names!
+    names_to = "outcome",
+    values_to = "score"
+  )
+
+data_long_refl <- data_long_refl %>%
+  mutate(
+    outcome = factor(outcome, levels = refs)
+  )
+
+# set color scale/palette and plot theme
+wolke_color_scale <- scale_colour_manual(values = rev(pal_jco("default")(3)))
+wolke_theme <-
+  jtools::theme_apa(
+    legend.pos = "bottomright",
+    legend.use.title = T,
+    facet.title.size = 12,
+    x.font.size = 18,
+    y.font.size = 18,
+    legend.font.size = 12
+  )
+
+ggplot(data_long_refl, aes(x = intervention, y = score, color=intervention)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, alpha = 0.5) +
+  # add mean as diamond shape
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    shape = 18,
+    size = 4,
+    color = "black",
+    fill = "black"
+  ) +
+  facet_wrap(~outcome, scales = "free_y") +
+  labs(x = "Intervention Group", y = "REF") +
+  wolke_color_scale +
+  wolke_theme
+```
+
+## Demographics Check
 ```{r test}
 library(dplyr)
 library(tidyr)
@@ -670,7 +740,7 @@ check_demo_vars(
 )
 ```
 
-
+### Rerun Models without Semester, but Study Level as Covariate
 ::: {.landscape}
 ```{r rerun-models-with-study-level}
 lmers_prepost_all_study_level <- lapply(lmers_prepost_all, function(m) {
