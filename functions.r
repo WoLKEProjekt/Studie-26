@@ -232,6 +232,38 @@ plot_outcome_over_time <- function(
   return(p)
 }
 
+fit_ancova <- function(
+  response_var,
+  groups = NULL,
+  controls = NULL,
+  se_type = "HC3",
+  data
+) {
+  data <- data %>%
+    rename(
+      !!"pretest" := paste0(response_var, "_pre"),
+    )
+  formula_string <- paste(
+    paste0(response_var, "_post"),
+    "~",
+    groups,
+    "+",
+    "pretest",
+    "+",
+    paste(controls, collapse = "+")
+  )
+  if (!is.null(se_type)) {
+    model <- lm_robust(
+      as.formula(formula_string),
+      data = data,
+      se_type = se_type
+    )
+  } else {
+    model <- lm(as.formula(formula_string), data = data)
+  }
+  return(model)
+}
+
 fit_lmer <- function(
   response_var,
   groups = NULL,

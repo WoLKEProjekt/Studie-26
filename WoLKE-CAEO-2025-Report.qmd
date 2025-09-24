@@ -81,7 +81,8 @@ data_wtf <- data %>%
     location = factor(
       location,
       levels = c("PH Schwäbisch Gmünd", "PH Ludwigsburg")
-    )
+    ),
+    treatment = factor(ifelse(intervention == "control", "control", "intervention"))
   )
 
 ## define contrast Control vs Exp1+Exp2 - vermutlich bessere version, da die Estimates "stimmen"
@@ -192,7 +193,7 @@ The students were enrolled in semester $`r data_pre$semester%>%min`$ to $`r data
 
 ```{r table-participants, result = "asis"}
 #| label: tbl-participants
-#| tbl-cap: "Demographic Data of the Three Experimental Groups"
+#| tbl-cap: "Demographic Data of the Three Experimental Groups."
 # render as table
 format <- ifelse(
   knitr::is_html_output(),
@@ -256,6 +257,78 @@ kable(
 )
 ```
 
+### Effect Sizes for Group Differences for Covariates
+```{r group-differences-effectsizes}
+
+vars_num <- c("age", "semester")      # numeric outcomes
+vars_cat <- c("gender", "students")   # categorical outcomes
+
+d <- data %>%
+  filter(time == "pre") %>%
+  mutate(
+    gender   = factor(gender,   labels = c("Female", "Male")),
+    students = factor(students, labels = c("Bachelor", "Master"))
+  )
+
+# eta^2 for numeric outcomes
+eta_num <- purrr::map_dfr(vars_num, function(v) {
+  f <- as.formula(paste(v, "~ intervention"))
+  m <- lm(f, data = d)
+  es <- effectsize::eta_squared(m, partial = TRUE)
+  tibble(
+    variable = v,
+    effect   = "eta2",
+    value    = es$Eta2[1],
+    interpretation = effectsize::interpret_eta_squared(value) %>% as.character
+  )
+})
+
+# Cramér's V for categorical outcomes
+cv_cat <- purrr::map_dfr(vars_cat, function(v) {
+  tab <- table(d[[v]], d$intervention)
+  cv  <- effectsize::cramers_v(tab)
+  tibble(
+    variable = v,
+    effect   = "cramers_v",
+    value    = cv$Cramers_v,
+    interpretation = effectsize::interpret_cramers_v(value) %>% as.character
+  )
+})
+
+effectsizes_covariates <- bind_rows(eta_num, cv_cat) %>%
+  mutate(
+    value = apa_num(value)
+  )
+effectsizes_covariates %>% kable
+
+cohens_d_two_groups <- purrr::map_dfr(vars_num, function(v) {
+  es <- effectsize::cohens_d(v, "treatment", d, pooled = TRUE)
+  tibble(
+    variable = v,
+    effect   = "cohens_d",
+    value    = es$Cohens_d,
+    interpretation = effectsize::interpret_cohens_d(value) %>% as.character
+  )
+})
+
+phi_two_groups <- purrr::map_dfr(vars_cat, function(v) {
+  tab <- table(d[[v]], d$treatment)
+  phi <- effectsize::phi(tab, adjust = F)
+  tibble(
+    variable = v,
+    effect   = "phi",
+    value    = phi$phi,
+    interpretation = effectsize::interpret_phi(value) %>% as.character
+  )
+})
+
+# combine
+effectsizes_covariates__two_groups <- bind_rows(cohens_d_two_groups, phi_two_groups) %>%
+  mutate(
+    value = apa_num(value)
+  )
+```
+
 ## Materials
 
 ### Translation Process
@@ -274,6 +347,7 @@ The raw data and *R* scripts detailing the analyses can be accessed in the onlin
 
 :::{.callout-note}
 Ist unser Design 3- oder 2-faktoriell?
+-> wenn treatment 3 Gruppen, dann 3-faktoriell, sonst 2-faktoriell
 :::
 
 We implemented the two-level models with the students at level 1 (individual level) and the University at level 2 (class level). We addressed the clustering of time points within students by including random intercepts for students. The clustering of students within universities was addressed by including a dummy variable for the University. 
@@ -609,6 +683,168 @@ wir können für uns noch die Kontraste für PU anschauen. Hier ist interessant,
 stargazer_models(lmers_pu)
 ```
 
+# Results of ANCOVAs
+
+
+We analyzed the interventions' efficacy in a multilevel multiple linear regression analysis approach. For this, we implemented a multilevel one-way ANCOVA for each outcome measure, considering our $3$ factorial design.
+The clustering of students within universities was addressed by including a dummy variable for the University. 
+
+Additionally, we included the respective pretest score of the outcome measures as a covariate in the analyses.
+Finally, we included variables as a covariate if they met the criteria for baseline equivalence in randomized controlled trials by the What Works Clearinghouse [@WWC2022]. That is, we included the variables as covariates if the difference between the groups was statistically significant, or if it exceeded $d>.05$.
+We tested for group differences concerning the following variables at baseline (pretest): age, gender, semester, and study level (Bachelor vs. Master). We found for gender and semesters  statistically significant differences between the treamtment groups, see [@tbl-participants]. We thus included the following covariates in the models: gender and semester.
+
+That is, the final model for each outcome measure contained treatment, pretest score, gender, semester, and University as fixed effects, and was specified as follows:
+`lm_robust(outcome_post ~ treatment + outcome_pre + gender + semester + university)`.
+
+[@long2000].
+
+Posttest scores were standardized before running the analyses, so that the regression coefficients of the dummy variable indicating the respective treatment groups can directly be interpreted as Cohen’s d [@marsh2009].
+
+The criterion of statistical significance was set at α=.05.
+
+## Statistical Analysis
+::: {.callout-note}
+Die gleiche Statistik wie oben, aber statt lmer etc.:
+:::
+
+To compute heteroscedasticity-consistent (HC) standard errors, we used the *lm_robust* function from the *estimatr* package [@blair2025], specifying the HC3 estimator, which is recommended for small samples 
+
+```{r compute-ancovas}
+# reshape data to wide format for ancova
+data_wide <- data %>%
+  pivot_wider(
+    id_cols = c(code, intervention, group, gender, semester, students, location),
+    names_from = time,
+    values_from = all_of(outcomes)
+  ) %>% mutate(
+    # scale the posttest score so that the estimates are approximations of Cohen's d
+    across(all_of(outcomes %>% paste0("_post")), scale),
+
+    treatment = factor(ifelse(intervention == "control", "control", "intervention"))
+  )
+
+contrasts.treatment <- cbind(c(-1 / 2, 1 / 2))
+colnames(contrasts.treatment) <- c("-c+t")
+contrasts(data_wide$treatment) <- contrasts.treatment
+
+ancovas <- lapply(
+  outcomes,
+  fit_ancova,
+  groups,
+  controls,
+  "HC3",
+  data_wide
+)
+names(ancovas) <- outcomes
+
+ancovas_two_groups <- lapply(
+  outcomes,
+  fit_ancova,
+  "treatment",
+  controls,
+  "HC3",
+  data_wide
+)
+names(ancovas_two_groups) <- outcomes
+
+```
+
+## Intelligent TPACK and AI Ethics
+
+::: {.landscape}
+```{r tab.layout="autofit"}
+#| label: tbl-ancova-tpack-summary
+#| tbl-cap: "Summary of Multiple Regression Models for Intelligent TPACK Subscales and AI Ethics"
+
+ft_ancova <- modelsummary_models(
+  ancovas[grepl("^(T|Ethics)", names(ancovas))],
+  outcomes = outcomes %>% grep("^(T|Ethics)", ., value = TRUE),
+  output = modelsummary_output,
+  # coef_rename = c("genderMännlich" = "Geschlecht")
+) # %>%   kableExtra::scroll_box(width = "100%")
+
+if (is_word) {
+  ft_ancova <- adjust_table_for_word(ft_ancova, width = 1)
+}
+ft_ancova
+```
+
+:::
+
+## AI Literacy
+
+```{r tab.layout="autofit"}
+#| label: tbl-ancova-ailit-summary
+#| tbl-cap: "Summary of Multiple Regression Models for AI Literacy."
+
+ft_ailit_ancova <- modelsummary_models(
+  ancovas[names(ancovas) %in% c("AILIT", "AILITWolke")],
+  outcomes = c("AILIT", "AILITWolke"),
+  output = modelsummary_output,
+  # coef_rename = c("genderMännlich" = "Geschlecht")
+) # %>%   kableExtra::scroll_box(width = "100%")
+
+if (is_word) {
+  ft_ailit_ancova <- adjust_table_for_word(ft_ailit_ancova, width = .75)
+}
+ft_ailit_ancova
+```
+
+## Perceived Usefulness
+
+::: {.landscape}
+```{r tab.layout="autofit"}
+#| label: tbl-ancova-pu-summary
+#| tbl-cap: "Summary of Multiple Linear Regression Models for Perceived Usefulness."
+
+ft_pu_ancova <- modelsummary_models(
+  ancovas[grepl("^(PU)", names(ancovas))],
+  outcomes = outcomes %>% grep("^(PU)", ., value = TRUE),
+  output = modelsummary_output,
+  # coef_rename = c("genderMännlich" = "Geschlecht")
+) # %>%   kableExtra::scroll_box(width = "100%")
+
+if (is_word) {
+  ft_pu_ancova <- ft_pu_ancova %>% adjust_table_for_word()
+}
+ft_pu_ancova
+```
+
+:::
+
+## Two Groups (Control vs. Intervention)
+
+::: {.callout-note}
+Due to the very small (insignificant) difference between the distribution of gender in the treatment groups, we could drop it from the covariates.
+:::
+
+
+```{r effectsizes-covariates-two-groups}
+
+# perform chi square for categorical variables
+chisquare_covariates_two_groups <- vars_cat  %>% lapply(function(v) {
+  tab <- table(d[[v]], d$treatment)
+  chisq <- chisq.test(tab)
+})
+names(chisquare_covariates_two_groups) <- vars_cat
+
+chisquare_covariates_two_groups
+
+effectsizes_covariates__two_groups %>% kable
+```
+
+```{r ancova-two-groups}
+#| label: tbl-ancova-two-groups
+#| tbl-cap: "Summary of Multiple Linear Regression Models for Two Treatment Groups."
+
+modelsummary_models(
+  ancovas_two_groups,
+  outcomes = outcomes,
+  output = modelsummary_output
+)
+
+```
+
 # Discussion
 
 # Playground
@@ -755,3 +991,8 @@ modelsummary_models(
 
 ::: 
 
+```{r lmer-standardize-testing}
+
+summary(lmer(AILITWolke ~  intervention*time +  semester + location + (1|code), data %>%  mutate(AILITWolke = scale(AILITWolke)) %>% ungroup()), corr=F)
+
+```
