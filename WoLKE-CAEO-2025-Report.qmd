@@ -60,6 +60,7 @@ library(jtools) # theme_apa etc.
 library(papaja) # for apa reporting
 library(sjPlot) # for tab_model
 library(stargazer) # for stargazer tables
+library(estimatr) # for lm_robust
 source(file = "functions.r") # all outsourced funtions
 ```
 
@@ -89,8 +90,7 @@ data_wtf <- data %>%
 mat <- cbind(
   c(1 / 3, 1 / 3, 1 / 3), # Durchschnitt aller 3 Gruppen
   c(-1, .5, .5), # Vergleich Control vs Mittel der beiden Interventions-Gruppen
-  c(0, -1, 1)
-) # Vergleich Sprache vs MINT
+  c(0, -1, 1)) # Vergleich Sprache vs MINT
 contrasts.CvsExp <- solve(t(mat))[, -1]
 colnames(contrasts.CvsExp) <- c("-c+STEM_language", "-STEM+language")
 contrasts(data_wtf$intervention) <- contrasts.CvsExp
@@ -686,17 +686,18 @@ stargazer_models(lmers_pu)
 # Results of ANCOVAs
 
 
-We analyzed the interventions' efficacy in a multilevel multiple linear regression analysis approach. For this, we implemented a multilevel one-way ANCOVA for each outcome measure, considering our $3$ factorial design.
-The clustering of students within universities was addressed by including a dummy variable for the University. 
+We analyzed the interventions' efficacy in a multiple linear regression analysis approach. For this, we implemented a one-way ANCOVA for each outcome measure, considering our $3$ factorial design.
+
+::: {.callout-note}
+We did not include the university dummy variable for the clustering of students within universities, as we only have control students at University 2 (and thus yields a high correlation with treatment as well).
+:::
 
 Additionally, we included the respective pretest score of the outcome measures as a covariate in the analyses.
 Finally, we included variables as a covariate if they met the criteria for baseline equivalence in randomized controlled trials by the What Works Clearinghouse [@WWC2022]. That is, we included the variables as covariates if the difference between the groups was statistically significant, or if it exceeded $d>.05$.
 We tested for group differences concerning the following variables at baseline (pretest): age, gender, semester, and study level (Bachelor vs. Master). We found for gender and semesters  statistically significant differences between the treamtment groups, see [@tbl-participants]. We thus included the following covariates in the models: gender and semester.
 
 That is, the final model for each outcome measure contained treatment, pretest score, gender, semester, and University as fixed effects, and was specified as follows:
-`lm_robust(outcome_post ~ treatment + outcome_pre + gender + semester + university)`.
-
-[@long2000].
+`lm_robust(outcome_post ~ treatment + outcome_pre + gender + semester )`.
 
 Posttest scores were standardized before running the analyses, so that the regression coefficients of the dummy variable indicating the respective treatment groups can directly be interpreted as Cohen’s d [@marsh2009].
 
@@ -707,7 +708,7 @@ The criterion of statistical significance was set at α=.05.
 Die gleiche Statistik wie oben, aber statt lmer etc.:
 :::
 
-To compute heteroscedasticity-consistent (HC) standard errors, we used the *lm_robust* function from the *estimatr* package [@blair2025], specifying the HC3 estimator, which is recommended for small samples 
+To compute heteroscedasticity-consistent (HC) standard errors, we used the *lm_robust* function from the *estimatr* package [@blair2025], specifying the HC3 estimator, as recommended for small samples [@long2000].
 
 ```{r compute-ancovas}
 # reshape data to wide format for ancova
@@ -731,7 +732,8 @@ ancovas <- lapply(
   outcomes,
   fit_ancova,
   groups,
-  controls,
+  # we remove University as a covariate as we only have control students at University 2
+  setdiff(controls, "location"),
   "HC3",
   data_wide
 )
@@ -741,7 +743,7 @@ ancovas_two_groups <- lapply(
   outcomes,
   fit_ancova,
   "treatment",
-  controls,
+  setdiff(controls, "location"),
   "HC3",
   data_wide
 )
@@ -790,6 +792,23 @@ if (is_word) {
 ft_ailit_ancova
 ```
 
+```{r, results="asis"}
+if (!is_word) {
+  cat("### Pairwise Contrasts Between Groups")
+}
+```
+
+```{r ailit-ancova-between-contrasts}
+# pairwise between contrasts (no multiplicity adjustment)
+ailit_ancova_between_contrasts <- lapply(ancovas[1:3], function(m) {
+  emmeans(m, ~ intervention) %>%
+    contrast(interaction = "pairwise", adjust = "none")
+})
+if (!is_word) {
+  print(ailit_ancova_between_contrasts)
+}
+```
+
 ## Perceived Usefulness
 
 ::: {.landscape}
@@ -811,6 +830,8 @@ ft_pu_ancova
 ```
 
 :::
+
+
 
 ## Two Groups (Control vs. Intervention)
 
@@ -977,6 +998,7 @@ check_demo_vars(
 ```
 
 ### Rerun Models without Semester, but Study Level as Covariate
+
 ::: {.landscape}
 ```{r rerun-models-with-study-level}
 lmers_prepost_all_study_level <- lapply(lmers_prepost_all, function(m) {
@@ -991,8 +1013,120 @@ modelsummary_models(
 
 ::: 
 
-```{r lmer-standardize-testing}
+## Comparison of Certain Covariates
 
-summary(lmer(AILITWolke ~  intervention*time +  semester + location + (1|code), data %>%  mutate(AILITWolke = scale(AILITWolke)) %>% ungroup()), corr=F)
+### In- and Exclusion of University as Covariate
+```{r}
 
+modelsummary_models(list(ancovas[["AILITWolke"]], 
+lm_robust(AILITWolke_post ~ intervention + pretest + gender + semester + location, data_wide %>% mutate(pretest = AILITWolke_pre), se_type="HC3"),
+lm(AILITWolke_post ~ intervention + pretest + gender + semester, data_wide %>% mutate(pretest = AILITWolke_pre)),
+lm_robust(AILITWolke_post ~ treatment + pretest + gender + semester , data_wide %>% mutate(pretest = AILITWolke_pre), se_type="HC3")),
+  output = modelsummary_output)
 ```
+
+## LMERs with Standardized Outcomes
+```{r lmers-standardized}
+modelsummary_models(list(lmers_prepost_all[["AILITWolke"]],
+lmer(AILITWolke~ intervention * time +(1|code), data),
+lmer(AILITWolke~ intervention * time +(1|code), data %>% group_by(time) %>% mutate(AILITWolke = scale(AILITWolke)) %>% ungroup()))
+, output = modelsummary_output
+)
+```
+
+## Cluster-Robust Standard Errors for LMER Models
+
+::: {.callout-tip}
+If we used cluster-robust standard errors in the lmer models, the SEs become a little smaller, resulting in slightly smaller p-values.
+:::
+
+```{r tbl-lmer-robust-se}
+#| tbl-cap: "Summary of Linear Mixed-Effects Models with Cluster-Robust Standard Errors and Satterthwait-Corrected Tests Using clubSandwich::vcovCR with CR2."
+
+
+# Cluster-robust vcov (CR2 is usually recommended)
+# However, modelsummary itself doesn't directly implement Satterthwaite tests; it relies on the vcov matrix for standard errors and calculates tests using default methods. 
+
+modelsummary_models(lmers_prepost_all, vcov = "CR2")
+
+# Alternative, which is not needed if modelsummary correctly derives the cluster variable from the model (which is the case for the random intercept of code)
+vcov_list <- outcomes %>% lapply(function(o) {
+  m <- lmers_prepost_all[[o]]
+  # cluster-robust variance estimator with CR2 small-sample correction
+  clubSandwich::vcovCR(m, cluster = data$code, type = "CR2")
+})
+# modelsummary_models(lmers_prepost_all, vcov = vcov_list)
+```
+
+
+```{r tbl-lmer-robust-se-satt}
+#| tbl-cap: "Summary of Linear Mixed-Effects Models with Cluster-Robust Standard Errors and Satterthwaite-Corrected Tests Using coef_tests."
+
+
+# Extract coefficient tests with cluster-robust CR2 SE and Satterthwaite correction
+coef_tests <- lapply(lmers_prepost_all, function(model) {
+  clubSandwich::coef_test(model, vcov = "CR2", cluster = data$code, test = "Satterthwaite")
+})
+# Simple custom class for robust results
+create_robust_lmer <- function(model, coef_test_result) {
+  robust_obj <- structure(
+    list(
+      model = model,
+      robust_results = coef_test_result
+    ),
+    class = c("robust_lmer", class(model))
+  )
+  
+  # Copy important attributes from the original model
+  attr(robust_obj, "formula") <- formula(model)
+  
+  return(robust_obj)
+}
+
+# Simple tidy method - just return your robust results
+tidy.robust_lmer <- function(x, ...) {
+  ct <- x$robust_results
+  data.frame(
+    term = rownames(ct),
+    estimate = ct$beta,
+    std.error = ct$SE,
+    statistic = ct$tstat,
+    p.value = ct$p_Satt,
+    stringsAsFactors = FALSE
+  )
+}
+
+# Simple glance method - get basic stats + R²
+glance.robust_lmer <- function(x, ...) {
+  model <- x$model
+  
+  # Basic model stats
+  basic_stats <- data.frame(
+    nobs = nobs(model),
+    aic = AIC(model),
+    bic = BIC(model),
+    logLik = as.numeric(logLik(model)),
+    Std.Errors = "CR2"
+  )
+  
+  # Add R² marginal and conditional
+    # Add R² using custom names that will display as you want
+  if (requireNamespace("performance", quietly = TRUE)) {
+    r2 <- performance::r2(model)
+    basic_stats$`R2 Marg.` <- r2$R2_marginal %>% round(3)       
+    basic_stats$`R2 Cond.` <- r2$R2_conditional %>% round(3)
+  }
+  return(basic_stats)
+}
+
+# Create robust models
+robust_models <- lapply(seq_along(lmers_prepost_all), function(i) {
+  create_robust_lmer(lmers_prepost_all[[i]], coef_tests[[i]])
+})
+
+# Use with modelsummary
+modelsummary_models(
+  robust_models
+)
+```
+

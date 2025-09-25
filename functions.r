@@ -424,6 +424,8 @@ modelsummary_models <- function(
   title = NULL,
   output = "kableExtra",
   ddf = "kr",
+  vcov = NULL,
+  tidy = NULL,
   coef_rename = NULL
 ) {
   # create a new list based on the outcomes that contains names(list)=models
@@ -452,6 +454,8 @@ modelsummary_models <- function(
     fmt = fmt_decimal(digits = 2, pdigits = 3),
     ci_method = ddf,
     coef_rename = coef_rename,
+    vcov = vcov,
+    tidy = tidy,
     escape = switch(output, "latex" = T, "latex_tabular" = T, F)
   )
   if (output == "kableExtra") {
