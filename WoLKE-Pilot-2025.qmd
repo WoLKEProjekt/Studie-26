@@ -31,24 +31,37 @@ format:
 ## Load Libraries
 
 ```{r load-libraries-and-functions}
+renv::load()
 #| output: false
+## Pfad/Utilities
 library(this.path)
-library(dplyr) #e.g. for select
-library(tidyr) # for reshaping data
-library(stringdist) #levenshtein
-library(stringr) # for reshaping data
+
+## Wrangling
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(forcats)
+library(purrr)
+
+## Ähnlichkeit/Text
+library(stringdist)
+library(psych)
+
+## Modellierung
+library(lavaan)
 library(lme4)
-library(lmerTest)
+library(lmerTest) # erweitert lme4
 library(emmeans)
+
+## Tabellen/Reporting
 library(modelsummary)
 library(kableExtra)
 library(arsenal)
-library(forcats)
-library(psych)
-library(purrr)
+
+## Visualisierung/Themes
 library(ggplot2)
-library(ggsci) # color palettes
-library(jtools) # theme_apa etc.
+library(ggsci)
+library(jtools) # nutzt ggplot2
 source(file = "functions.r") # all outsourced funtions
 ```
 
@@ -632,25 +645,156 @@ result_df <- desc_df %>%
 
 result_df
 
-# look at reflection scales' alpha in post data
-data_post <- data %>% filter(time == "post")
-ref_scale <- c(
-  list_items_ref
-)
-
-# 1) Cronbach's alpha for each scale
-alphas_post <- imap(
-  ref_scale,
-  ~ psych::alpha(dplyr::select(data_post, dplyr::all_of(.x)), warnings = FALSE)
-)
-
-# 2) Extract only std.alpha
-alpha_post_df <- tibble(
-  scale = names(alphas_post),
-  std_alpha = map_dbl(alphas_post, ~ .x$total$std.alpha)
-)
-alpha_post_df
 ```
+
+### Exploring Ref scale in posttest
+
+```{r pca-ref}	
+data_post <- data %>% filter(time == "post" & Ref != "NaN")
+## PCA
+df_ref_items <- data_post %>%
+  select(all_of(list_items_ref$Ref)) %>%
+  na.omit()
+fa.parallel(df_ref_items, fa = "pc", n.iter = 100, show.legend = FALSE) # tells us 3-4 components to extract
+ncomp <- 3
+pca_ref <- principal(
+  df_ref_items,
+  nfactors = ncomp,
+  rotate = "none",
+  scores = TRUE
+)
+print(pca_ref, digits = 3) # tells us that the 4 PCs explain 65% of variance (1st 31%, 2nd 14%, 3rd 12%, 4th 6.9%)
+
+# rotate to get simpler structure
+pca_ref_rot <- principal(
+  df_ref_items,
+  nfactors = ncomp,
+  rotate = "varimax",
+  scores = TRUE
+)
+print(pca_ref_rot, digits = 3, sort = TRUE)
+
+# extract the loading matrix and look at each item
+L <- as.data.frame(unclass(pca_ref_rot$loadings))
+
+# find each item's dominant component (highest absolute loading)
+L$primary <- colnames(L)[apply(abs(L), 1, which.max)]
+
+# function to compute percentage contributions within each component
+contrib_list <- lapply(unique(L$primary), function(comp) {
+  sub <- L[L$primary == comp, ]
+  load_abs2 <- (abs(sub[[comp]])^2)
+  pct <- load_abs2 / sum(load_abs2) * 100
+  data.frame(
+    item = rownames(sub),
+    component = comp,
+    loading = round(sub[[comp]], 3),
+    contrib_pct = round(pct, 2)
+  )
+})
+contrib_tbl <- bind_rows(contrib_list) %>% arrange(component, desc(contrib_pct))
+contrib_tbl
+```
+
+We see 3 strong components in the Ref scale. Further investigate the items with EFA and Cronbach's alpha.
+
+```	{r ref-efa}
+ncomp <- 3
+# EFA
+df_ref_items <- data_post %>%
+  select(all_of(list_items_ref$Ref)) %>%
+  na.omit()
+ref_scale <- list_items_ref %>% unlist(use.names = F)
+# ref_scale <- c(
+#   "RE01_01",
+#   "RE01_03",
+#   "RE01_04",
+#   "RE01_05",
+#   "RE01_06",
+#   "RE01_07",
+#   "RE01_11",
+#   "RE01_13",
+#   "RE01_16"
+# )
+# efa_varimax <- data_post %>%
+#   select(any_of(ref_scale)) %>%
+#   psych::fa(
+#     nfactors = ncomp,
+#     rotate = "varimax",
+#     fm = "mlr",
+#     ordered = F,
+#     missing = T
+#   )
+# print(efa_varimax, digits = 2, cut = .3, sort = F)
+
+efa_promax <- df_ref_items %>%
+  select(any_of(ref_scale)) %>%
+  psych::fa(nfactors = ncomp, rotate = "varimax", fm = "ml", missing = T)
+
+# print(efa_promax, digits = 2, cut = .3, sort = F)
+fa.diagram(efa_promax, digits = 2, cut = .30, simple = FALSE)
+
+## Computing EFA using the lavaan package
+tpack_efa <- lavaan::efa(
+  df_ref_items %>%
+    select(any_of(ref_scale)),
+  nfactors = ncomp,
+  rotation = "varimax",
+  ordered = F,
+  std.lv = TRUE,
+  missing = "fiml"
+)
+
+# tpack_efa <- lavaan::efa(
+#   df_ref_items %>%
+#     select(any_of(ref_scale)),
+#   nfactors = ncomp,
+#   rotation = "none",
+#   ordered = names(df_ref_items),
+#   std.lv = TRUE,
+#   estimator = "WLSMV"
+# )
+
+summary(tpack_efa, nd = 3L, cutoff = 0.3, dot.cutoff = 0.05)
+# fitMeasures(tpack_efa, fit.measures = "all")
+```	
+
+items that could be removed: 
+for scale 1: 02/09-11 have only weak or unclean loads; 16 is low loaded
+for scale 3: 08 too weak and 15 too weak and cross-loading
+
+```	{r ref-cronbach}
+## Alphas
+scales <- list(
+  core3 = c("RE01_01", "RE01_03", "RE01_13"),
+  core4 = c("RE01_01", "RE01_03", "RE01_13", "RE01_12"),
+  applied = c("RE01_04", "RE01_05", "RE01_14"),
+  tech = c("RE01_06", "RE01_07"),
+  total = ref_scale
+)
+
+alpha_summary <- imap_dfr(
+  scales,
+  ~ {
+    dat <- df_ref_items %>%
+      select(all_of(.x)) %>%
+      mutate(across(everything(), ~ as.numeric(as.character(.))))
+    a <- psych::alpha(dat, use = "pairwise", check.keys = TRUE)
+    tibble(
+      scale = .y,
+      raw_alpha = round(a$total$raw_alpha, 3),
+      std_alpha = round(a$total$std.alpha, 3),
+      avg_r = round(a$total$average_r, 3),
+      n_items = a$total$nvar
+    )
+  }
+)
+
+alpha_summary
+
+
+```	
+
 
 ## Descriptive Plots
 
