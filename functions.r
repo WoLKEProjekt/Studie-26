@@ -232,6 +232,38 @@ plot_outcome_over_time <- function(
   return(p)
 }
 
+fit_ancova <- function(
+  response_var,
+  groups = NULL,
+  controls = NULL,
+  se_type = "HC3",
+  data
+) {
+  data <- data %>%
+    rename(
+      !!"pretest" := paste0(response_var, "_pre"),
+    )
+  formula_string <- paste(
+    paste0(response_var, "_post"),
+    "~",
+    groups,
+    "+",
+    "pretest",
+    "+",
+    paste(controls, collapse = "+")
+  )
+  if (!is.null(se_type)) {
+    model <- lm_robust(
+      as.formula(formula_string),
+      data = data,
+      se_type = se_type
+    )
+  } else {
+    model <- lm(as.formula(formula_string), data = data)
+  }
+  return(model)
+}
+
 fit_lmer <- function(
   response_var,
   groups = NULL,
@@ -392,6 +424,8 @@ modelsummary_models <- function(
   title = NULL,
   output = "kableExtra",
   ddf = "kr",
+  vcov = NULL,
+  tidy = NULL,
   coef_rename = NULL
 ) {
   # create a new list based on the outcomes that contains names(list)=models
@@ -420,6 +454,8 @@ modelsummary_models <- function(
     fmt = fmt_decimal(digits = 2, pdigits = 3),
     ci_method = ddf,
     coef_rename = coef_rename,
+    vcov = vcov,
+    tidy = tidy,
     escape = switch(output, "latex" = T, "latex_tabular" = T, F)
   )
   if (output == "kableExtra") {
