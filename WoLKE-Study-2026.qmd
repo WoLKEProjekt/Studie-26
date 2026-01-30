@@ -1,5 +1,5 @@
 ---
-title: "WoLKE-Pilot-2025"
+title: "WoLKE-Studie-2026"
 author: "Benedikt Beuttler"
 date: "`r Sys.Date()`"
 lang: de
@@ -33,35 +33,31 @@ format:
 ```{r load-libraries-and-functions}
 renv::load()
 #| output: false
+
+# install pacman
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+library(pacman)
+
 ## Pfad/Utilities
 library(this.path)
 
 ## Wrangling
-library(dplyr)
-library(tidyr)
-library(stringr)
-library(forcats)
-library(purrr)
+# use pacman to load packages
+p_load(dplyr, tidyr, stringr, forcats, purrr)
 
 ## Ähnlichkeit/Text
-library(stringdist)
-library(psych)
+p_load(stringdist, psych)
 
 ## Modellierung
-library(lavaan)
-library(lme4)
-library(lmerTest) # erweitert lme4
-library(emmeans)
+p_load(lavaan, lme4, lmerTest, emmeans)
 
 ## Tabellen/Reporting
-library(modelsummary)
-library(kableExtra)
-library(arsenal)
+p_load(modelsummary, kableExtra, arsenal)
 
 ## Visualisierung/Themes
-library(ggplot2)
-library(ggsci)
-library(jtools) # nutzt ggplot2
+p_load(ggplot2, ggsci, jtools)
 source(file = "functions.r") # all outsourced funtions
 ```
 

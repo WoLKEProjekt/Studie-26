@@ -5,21 +5,4 @@
 
 /.quarto/
 
-rdata_ki-lehramt_*.csv
 .DS_Store
-
-data/code_distances.txt
-
-data/data.Rdata
-
-WoLKE-Pilot-2025_cache/
-
-data/data_all.Rdata
-
-WoLKE-CAEO-2025-Report_cache/
-
-WoLKE-Pilot-2025_files/
-
-WoLKE-CAEO-2025-Report_files/
-
-WoLKE-CAEO-2025-Report.docx.md
