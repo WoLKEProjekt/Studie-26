@@ -24,6 +24,11 @@ format:
     date-format: long
 ---
 
+```{r Information for first time user to get started with renv}
+install.packages("renv") #1
+renv::restore() #2
+```
+
 # Preamble
 
 ## Prepare the Environment
@@ -31,7 +36,6 @@ format:
 ## Load Libraries
 
 ```{r load-libraries-and-functions}
-renv::load()
 #| output: false
 
 # install pacman
@@ -41,7 +45,7 @@ if (!requireNamespace("pacman", quietly = TRUE)) {
 library(pacman)
 
 ## Pfad/Utilities
-library(this.path)
+p_load(this.path)
 
 ## Wrangling
 # use pacman to load packages
@@ -58,6 +62,14 @@ p_load(modelsummary, kableExtra, arsenal)
 
 ## Visualisierung/Themes
 p_load(ggplot2, ggsci, jtools)
+
+install.packages(
+  "mnormt",
+  type = "binary",
+  repos = "https://cloud.r-project.org"
+)
+
+
 source(file = "functions.r") # all outsourced funtions
 ```
 
