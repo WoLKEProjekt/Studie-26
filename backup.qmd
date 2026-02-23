@@ -1,0 +1,306 @@
+
+# alte Analysen mit lmer
+
+Im folgenden verwenden wir drei Kontraste: (0) Intercept = Gesamtdurchschnitt aller Gruppen, (1) Exp-Ø (MINT+Sprache)/2 vs. Control, (2) Sprache vs. MINT. Mit der Zeit-Interaktion testen wir, ob sich diese Unterschiede über die Zeit unterschiedlich entwickeln (Difference-in-Differences: Exp-Ø vs. Control sowie Sprache vs. MINT).
+``` {r lmer MINT vs Sprache vs Kontrollgruppe}
+#| eval: false
+data <- data %>% droplevels() # drop unused factor levels
+
+## define contrast Control vs Exp1+Exp2 - vermutlich bessere version, da die Estimates "stimmen"
+mat <- cbind(
+  c(1 / 3, 1 / 3, 1 / 3), # Durchschnitt aller 3 Gruppen
+  c(-1, .5, .5), # Vergleich Control vs Mittel der beiden Interventions-Gruppen
+  c(0, -1, 1)
+) # Vergleich Sprache vs MINT
+contrasts.CvsExp <- solve(t(mat))[, -1]
+colnames(contrasts.CvsExp) <- c("-C+MINT_Sprache", "-MINT+Sprache")
+contrasts(data$intervention) <- contrasts.CvsExp
+
+# or use this coding system?
+# my.helmert <- matrix(c(-2 / 3, 1 / 3, 1 / 3, 0, -1 / 3, 1 / 3), ncol = 2)
+# colnames(my.helmert) <- c("-C+MINT_Sprache", "-MINT+Sprache")
+# contrasts(data$cond2) <- my.helmert
+
+## define variables
+random_terms_lmer <- c("(1 | code)")
+groups <- c("intervention")
+outcomes <- c(
+  "AILIT",
+  "AILITWolke",
+  "AILITShort",
+  "TK",
+  "TPK",
+  "TCK",
+  "TPACKce",
+  "TPACKgenai",
+  "Ethics",
+  "PU",
+  "PU1",
+  "PU2",
+  "PU3",
+  "PU4"
+)
+time <- "time"
+controls <- c("gender", "semester", "location")
+
+# groups set as NA
+lmers_prepost_all <-
+  lapply(
+    outcomes,
+    fit_lmer,
+    groups,
+    time,
+    controls,
+    random_terms_lmer,
+    NULL,
+    data = data
+  )
+
+modelsummary_models(lmers_prepost_all)
+
+```
+
+```{r scale reliability with cronbach alpha}	
+#| eval: false
+## look at MSD and cronbach alphas for outcomes for each intervention group
+# filter out pre data and relevant lists
+data_pre <- data %>% filter(time == "pre")
+all_scales <- c(
+  list_items_i_tpack,
+  list_items_pu
+)
+# 1) Cronbach's alpha for each scale
+alphas <- imap(
+  all_scales,
+  ~ psych::alpha(dplyr::select(data_pre, dplyr::all_of(.x)), warnings = FALSE)
+)
+
+# 2) Extract only std.alpha
+alpha_df <- tibble(
+  scale = names(alphas),
+  std_alpha = map_dbl(alphas, ~ .x$total$std.alpha)
+)
+
+# 3) Descriptives (composite = row means; switch to rowSums if you want sums)
+desc_df <- imap_dfr(
+  all_scales,
+  ~ {
+    comp <- rowMeans(dplyr::select(data_pre, dplyr::all_of(.x)), na.rm = TRUE)
+    tibble(
+      scale = .y,
+      mean = mean(comp, na.rm = TRUE),
+      sd = sd(comp, na.rm = TRUE),
+      min = min(comp, na.rm = TRUE),
+      max = max(comp, na.rm = TRUE)
+    )
+  }
+)
+
+# 4) Final summary: descriptives + std.alpha
+result_df <- desc_df %>%
+  left_join(alpha_df, by = "scale") %>%
+  arrange(scale)
+
+result_df
+
+```
+
+### Exploring Ref scale in posttest
+
+```{r pca-ref}	
+#| eval: false
+data_post <- data %>% filter(time == "post" & Ref != "NaN")
+## PCA
+df_ref_items <- data_post %>%
+  select(all_of(list_items_ref$Ref)) %>%
+  na.omit()
+fa.parallel(df_ref_items, fa = "pc", n.iter = 100, show.legend = FALSE) # tells us 3-4 components to extract
+ncomp <- 3
+pca_ref <- principal(
+  df_ref_items,
+  nfactors = ncomp,
+  rotate = "none",
+  scores = TRUE
+)
+print(pca_ref, digits = 3) # tells us that the 4 PCs explain 65% of variance (1st 31%, 2nd 14%, 3rd 12%, 4th 6.9%)
+
+# rotate to get simpler structure
+pca_ref_rot <- principal(
+  df_ref_items,
+  nfactors = ncomp,
+  rotate = "varimax",
+  scores = TRUE
+)
+print(pca_ref_rot, digits = 3, sort = TRUE)
+
+# extract the loading matrix and look at each item
+L <- as.data.frame(unclass(pca_ref_rot$loadings))
+
+# find each item's dominant component (highest absolute loading)
+L$primary <- colnames(L)[apply(abs(L), 1, which.max)]
+
+# function to compute percentage contributions within each component
+contrib_list <- lapply(unique(L$primary), function(comp) {
+  sub <- L[L$primary == comp, ]
+  load_abs2 <- (abs(sub[[comp]])^2)
+  pct <- load_abs2 / sum(load_abs2) * 100
+  data.frame(
+    item = rownames(sub),
+    component = comp,
+    loading = round(sub[[comp]], 3),
+    contrib_pct = round(pct, 2)
+  )
+})
+contrib_tbl <- bind_rows(contrib_list) %>% arrange(component, desc(contrib_pct))
+contrib_tbl
+```
+
+We see 3 strong components in the Ref scale. Further investigate the items with EFA and Cronbach's alpha.
+
+```	{r ref-efa}
+#| eval: false
+ncomp <- 3
+# EFA
+df_ref_items <- data_post %>%
+  select(all_of(list_items_ref$Ref)) %>%
+  na.omit()
+ref_scale <- list_items_ref %>% unlist(use.names = F)
+# ref_scale <- c(
+#   "RE01_01",
+#   "RE01_03",
+#   "RE01_04",
+#   "RE01_05",
+#   "RE01_06",
+#   "RE01_07",
+#   "RE01_11",
+#   "RE01_13",
+#   "RE01_16"
+# )
+# efa_varimax <- data_post %>%
+#   select(any_of(ref_scale)) %>%
+#   psych::fa(
+#     nfactors = ncomp,
+#     rotate = "varimax",
+#     fm = "mlr",
+#     ordered = F,
+#     missing = T
+#   )
+# print(efa_varimax, digits = 2, cut = .3, sort = F)
+
+efa_promax <- df_ref_items %>%
+  select(any_of(ref_scale)) %>%
+  psych::fa(nfactors = ncomp, rotate = "varimax", fm = "ml", missing = T)
+
+# print(efa_promax, digits = 2, cut = .3, sort = F)
+fa.diagram(efa_promax, digits = 2, cut = .30, simple = FALSE)
+
+## Computing EFA using the lavaan package
+tpack_efa <- lavaan::efa(
+  df_ref_items %>%
+    select(any_of(ref_scale)),
+  nfactors = ncomp,
+  rotation = "varimax",
+  ordered = F,
+  std.lv = TRUE,
+  missing = "fiml"
+)
+
+# tpack_efa <- lavaan::efa(
+#   df_ref_items %>%
+#     select(any_of(ref_scale)),
+#   nfactors = ncomp,
+#   rotation = "none",
+#   ordered = names(df_ref_items),
+#   std.lv = TRUE,
+#   estimator = "WLSMV"
+# )
+
+summary(tpack_efa, nd = 3L, cutoff = 0.3, dot.cutoff = 0.05)
+# fitMeasures(tpack_efa, fit.measures = "all")
+```	
+
+items that could be removed: 
+for scale 1: 02/09-11 have only weak or unclean loads; 16 is low loaded
+for scale 3: 08 too weak and 15 too weak and cross-loading
+
+```	{r ref-cronbach}
+#| eval: false
+## Alphas
+scales <- list(
+  core3 = c("RE01_01", "RE01_03", "RE01_13"),
+  core4 = c("RE01_01", "RE01_03", "RE01_13", "RE01_12"),
+  applied = c("RE01_04", "RE01_05", "RE01_14"),
+  tech = c("RE01_06", "RE01_07"),
+  total = ref_scale
+)
+
+alpha_summary <- imap_dfr(
+  scales,
+  ~ {
+    dat <- df_ref_items %>%
+      select(all_of(.x)) %>%
+      mutate(across(everything(), ~ as.numeric(as.character(.))))
+    a <- psych::alpha(dat, use = "pairwise", check.keys = TRUE)
+    tibble(
+      scale = .y,
+      raw_alpha = round(a$total$raw_alpha, 3),
+      std_alpha = round(a$total$std.alpha, 3),
+      avg_r = round(a$total$average_r, 3),
+      n_items = a$total$nvar
+    )
+  }
+)
+
+alpha_summary
+
+
+```	
+
+
+## Descriptive Plots
+
+### Reshape data to long format
+
+```{r reshape-long}
+#| eval: false
+data_long <- data %>%
+  pivot_longer(
+    cols = c(all_of(outcomes)),
+    names_to = "outcome",
+    values_to = "score"
+  )
+
+data_long <- data_long %>%
+  mutate(
+    outcome = factor(outcome, levels = outcomes)
+  )
+```
+
+```{r descriptive-plots}
+#| eval: false
+# TPACK
+p_tpack <- plot_outcome(
+  data_long %>% filter(!str_detect(outcome, "^(AILIT|PU)")),
+  scales_facet = "fixed"
+) +
+  ggtitle("Intelligent-TPACK")
+
+ggsave(
+  p_tpack + facet_wrap(~outcome, ncol = 3),
+  file = "figures/plot-tpack.pdf",
+  width = 8,
+  height = 10,
+  device = cairo_pdf
+)
+# AILIT and PU
+p_ailit <- plot_outcome(
+  data_long %>% filter(str_detect(outcome, "^(AILIT)"))
+) +
+  ggtitle("AI Literacy")
+
+p_pu <- plot_outcome(
+  data_long %>% filter(str_detect(outcome, "^(PU)")),
+  scales_facet = "fixed"
+) +
+  ggtitle("Perceived Usefulness")
+```

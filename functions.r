@@ -569,3 +569,17 @@ check_demo_vars <- function(
   }
   print(n = 100, na.omit(out))
 }
+
+adjust_table_for_word <- function(ft, width = 0) {
+  ft <- flextable::autofit(ft)
+  ft <- flextable::set_table_properties(ft, layout = "autofit", width = width)
+  ft <- flextable::fontsize(ft, size = 10, part = "header")
+  ft <- flextable::fontsize(ft, size = 8, part = "body")
+  ft
+}
+
+modelsummary_output <- ifelse(
+  knitr::is_latex_output(),
+  "latex_tabular",
+  ifelse(knitr::is_html_output(), "kableExtra", "flextable")
+)
