@@ -12,7 +12,7 @@ csl: https://www.zotero.org/styles/apa
 bibliography: library.bib
 editor: source
 execute:
-  cache: true
+  cache: false
 format:
   html:
     standalone: true
@@ -39,8 +39,6 @@ prefer-html: true
 ---
 
 
-This document contains the analysis scripts and report for the manuscript "A Course on AI for Pre-Service STEM and Language Teachers: A Quasi-Experimental Evaluation of Learning Outcomes Using Intelligent-TPACK and AI Literacy Instruments ". The R scripts, data are hosted at <OSF>.
-
 ```{r Information for first time user to get started with renv}
 #| output: false
 if (FALSE) {
@@ -55,7 +53,7 @@ if (FALSE) {
 
 ## Load Libraries
 
-```{r load-libraries-and-functions}
+```{r load-libraries-and-functions, cache=F}
 #| output: false
 
 # install pacman
@@ -78,7 +76,16 @@ p_load(stringdist, psych)
 p_load(lavaan, lme4, lmerTest, emmeans, estimatr)
 
 ## Tabellen/Reporting
-p_load(modelsummary, kableExtra, arsenal)
+# install.packages("remotes")
+
+# remotes::install_version(
+#   "modelsummary",
+#   version = "2.5.0",
+#   repos = "https://cran.r-project.org"
+# )
+
+p_load(modelsummary)
+p_load(kableExtra, arsenal)
 
 ## Visualisierung/Themes
 p_load(ggplot2, ggsci, jtools)
@@ -101,12 +108,33 @@ if (is_word) {
 
 ## Load Pre- and Posttest and Reshape Data
 
-```{r load and prepare data 1}
-# if there is env-analysis.Rdata, load that to get the data frame df, otherwise run this cell
-if (FALSE) {
-  # file.exists("env-analysis.Rdata")) {
-  load("data/env-analysis.Rdata")
-} else {
+```{r analysis-setup}
+#define vars
+controls <- c("gender", "semester", "location")
+random_terms_lmer <- c("(1 | code)")
+groups <- c("intervention")
+time <- "time"
+outcomes <- c(
+  "AILIT",
+  "AILIThorn",
+  "AILITglat",
+  "TK",
+  "TPK",
+  "TCK",
+  "TPACKce",
+  "TPACKgenai",
+  "Ethics",
+  "CEA",
+  "CEA_understanding",
+  "CEA_ped"
+)
+vars_num <- c("age", "semester") # numeric outcomes
+vars_cat <- c("gender", "students") # categorical outcomes`
+```
+
+```{r load and prepare data}
+prepare_data <- FALSE
+if (prepare_data) {
   # Set working directory to the script's location
   # safe working-directory selection (replace setwd(this.path::this.dir()))
   wd <- tryCatch(this.path::this.dir(), error = function(e) NULL)
@@ -130,474 +158,18 @@ if (FALSE) {
   }
   setwd(normalizePath(wd))
 
-  ### Load Data
-  # load csv -> df_pre
-  source("./data/import_data.r")
-
-  # extract relevant items in a separate data frame
-  data_raw <- df %>%
-    select(
-      QUESTNNR,
-      starts_with("DE"), # Demographics
-      starts_with("AI"), # AI Literacy Hornberger
-      starts_with("GL"), # AI Literacy GLAT
-      starts_with("TP"), # TPACK
-      starts_with("RE"), # Reflexion
-      starts_with("CT"), # Computational Thinking
-      starts_with("STARTED"),
-      starts_with("FINISHED")
-    )
-  # replace _posttest with _post for easier handling
-  data_raw$QUESTNNR <- str_replace(
-    data_raw$QUESTNNR,
-    "_posttest",
-    "_post"
-  )
-  # rename demographics
-  data_raw <- data_raw %>%
-    mutate(
-      code = tolower(DE13_01),
-      age = DE14_01,
-      semester = DE15_01,
-      studies = DE16,
-      subject1 = DE24,
-      subject2 = DE25,
-      gender = DE10,
-      location = DE11,
-      semestercount = DE15_01,
-      isp = DE09,
-      ai_training = DE32,
-      ai_training_amount = DE33,
-      #sprache_intervention = DE08,
-      sprache_last_sem = DE06, #already visited cans KI seminar
-      #mint_control = DE07,
-      mint_exclusion = DE02,
-      intervention_sprache = case_when(
-        str_to_lower(as.character(DE08)) == "ja" ~ TRUE,
-        str_to_lower(as.character(DE08)) == "nein" ~ FALSE
-      ),
-      intervention_mint = case_when(
-        str_to_lower(as.character(DE07)) == "ja" ~ TRUE,
-        str_to_lower(as.character(DE07)) == "nein" ~ FALSE
-      ),
-      intervention_only = coalesce(intervention_sprache, FALSE) | # is intervention group (stem or language)
-        coalesce(intervention_mint, FALSE),
-      intervention_only = as.logical(intervention_only)
-    )
-  data_raw <- data_raw[, c("code", setdiff(names(data_raw), "code"))] #set code as first column
-
-  # create relevant columns group (sprache mint), time (pre, post) and intervention (control, mint, sprache)
-  data_raw <- data_raw %>%
-    mutate(
-      group = case_when(
-        str_detect(QUESTNNR, "sprache") ~ "language",
-        str_detect(QUESTNNR, "mint") ~ "stem"
-      ),
-      time = case_when(
-        str_detect(QUESTNNR, "post") ~ "post",
-        TRUE ~ "pre"
-      ),
-      group = factor(group, levels = c("language", "stem")),
-      time = factor(time, levels = c("pre", "post"))
-    )
-
-  # create intervention with 3 factors: control, mint, sprache
-  data_raw <- data_raw %>%
-    mutate(
-      intervention = factor(
-        ifelse(
-          intervention_only == F,
-          "control",
-          ifelse(group == "stem", "stem", "language")
-        ),
-        levels = c("control", "stem", "language")
-      )
-    )
-  # create new variable subject with levels bachelor and master depending on studies value
-  data_raw <- data_raw %>%
-    mutate(
-      students = case_when(
-        str_detect(tolower(studies), "master") ~ "master",
-        str_detect(tolower(studies), "bachelor") ~ "bachelor",
-        TRUE ~ NA
-      ),
-      students = factor(students, levels = c("bachelor", "master"))
-    )
-}
-  ``` 
-
-``` {r checks, corrections and exclusions}
-
-## pre-correction exclusions
-# exclude, count and save the count of the ones that have not finished the questionnaire (FINISHED == F) and check how many that are
-total_n_before_exclusion <- nrow(data_raw) # 345 total
-not_finished_count <- sum(data_raw$FINISHED == "FALSE") # 46 removed
-data_raw <- data_raw %>% filter(FINISHED == "TRUE") # 299 remaining
-# count and exclude the one that have TRUE in mint_exclusion
-mint_exclusion_count <- sum(data_raw$mint_exclusion == "Ja", na.rm = TRUE) # 28 removed
-data_raw <- data_raw %>% filter(is.na(mint_exclusion) | mint_exclusion != "Ja") # 271 remaining
-
-## checks
-# check demograph. differences pre to post
-dem_diff <- check_demo_vars(
-  data_raw,
-  demo_vars = c(
-    "age",
-    "semester",
-    "gender",
-    "students",
-    "studies",
-    "intervention",
-    "location"
-  ),
-  id = "code",
-  show_only_diff = T
-)
-## corrections
-# age
-codes_age <- dem_diff %>%
-  filter(variable == "age") %>%
-  pull(code)
-# correct age in post to age in pre (to report one age and have same age for subj when calc models)
-for (cc in codes_age) {
-  # save pre value
-  pre_val <- data_raw$age[data_raw$code == cc & data_raw$time == "pre"]
-
-  # write that in post value
-  data_raw$age[data_raw$code == cc & data_raw$time == "post"] <- pre_val
+  # execute load_prepare_data.r to load and prepare the data via source command
+  suppressMessages(source("./data/load_prepare_data.r"))
+} else {
+  # load pre-prepared data
+  load("data/26-data_all.Rdata") # nicht nach pre und posttest gefiltert
+  load("data/26-data.Rdata") # probanden mit pre UND posttest
+  # load all Rdata from folder /data/dropouts
+  files <- list.files("data/dropouts", pattern = "\\.Rdata$", full.names = TRUE)
+  invisible(lapply(files, load, envir = .GlobalEnv))
 }
 
-# TODO Sina?
-# collect codes which need to be individually checked, and what for
-codes_to_check <- c(
-  "enan27", # age, semester, studies 2 mal?
-  "enta20", # age, 2 mal?
-  "enan26", # bachelor/master
-  "ennu03", # semester
-  "enro23", # semester
-  "ennu31", # semester
-  "enro23", # studies
-  "enut12", # studies
-  "enut20", # verschreiber mit enut12?
-  "imel28", # studies
-  "llsa08", # studies
-  "llsa09", # studies
-  "llsi08", # studies
-  "msma08", # semester
-  "rgal31", # semester
-  "rgma26" # semester
-)
-
-# view all codes_to_check in the raw data to check in a separate df (just take data_raw for that)
-View(data_raw %>% filter(code %in% codes_to_check))
-View(data_raw %>% filter(code == "enta20"))
-
-
-## exclusion
-# count in separate variable and exclude those with NA in code or empty code
-na_in_code <- sum(is.na(data_raw$code) | data_raw$code == "") # 33 removed
-data_raw <- data_raw[!(is.na(data_raw$code) | data_raw$code == ""), ] # 266 remaining
-
-
-## checks
-# check data types of all non test related columns
-str(data_raw[, c(1, 2, 184:204)])
-
-# data_raw$STARTED has this format "2026-01-27 12:21:13 CET" but i wanna check with tables only the dates, not the time
-date_check <- as.Date(substr(data_raw$STARTED, 1, 10))
-table(date_check)
-
-
-data <- clean_df(data_raw)
-# data_raw_clean <- data_raw
-
-## factorize some columns
-# define new levels for gender:
-# levels(data_raw_clean$gender) <- c("diverse", "no answer", "male", "female")
-# change order of levels
-data_raw_clean$gender <- factor(
-  data_raw_clean$gender
-  # levels = c("female", "male", "diverse", "no answer")
-)
-
-# for location
-data_raw_clean$location <- factor(
-  data_raw_clean$location,
-  levels = c("PH Ludwigsburg", "PH Schwäbisch Gmünd")
-)
-
-#count how many negative values there are in all RE and TP columns
-neg_counts <- colSums(
-  dplyr::select(data_raw_clean, dplyr::starts_with(c("RE", "TP"))) < 0,
-  na.rm = TRUE
-)
-
-# # which should not be negative and replace them with NA
-# data_raw_clean <- data_raw_clean %>%
-#   mutate(across(
-#     starts_with(c("RE", "TP")),
-#     ~ ifelse(. < 0, NA, .)
-#   ))
-
-# # identify columns of interest
-# cols_to_check <- grep(
-#   "^(CT|TP|AI36|ED|RE)",
-#   names(data_raw_clean),
-#   value = TRUE
-# )
-
-# # reshape to long format and check for negatives
-# negatives_df <- data_raw_clean %>%
-#   select(code, all_of(cols_to_check)) %>% # keep ID/code and relevant columns
-#   pivot_longer(
-#     cols = all_of(cols_to_check),
-#     names_to = "variable",
-#     values_to = "value"
-#   ) %>%
-#   filter(value < 0)
-
-# # list of codes where a negative was found
-# codes_with_negatives <- unique(negatives_df$code)
-
-# # count how many negatives per code
-# counts_per_code <- negatives_df %>%
-#   count(code, name = "n_negatives")
-
-# # total number of negative instances
-# total_negatives <- nrow(negatives_df)
-
-# outputs:
-# codes_with_negatives # vector of codes
-# counts_per_code # table of how many negatives per code
-# total_negatives # overall number of negative values
-
-# # replace negatives with NA in the original dataframe
-# data_raw_clean <- data_raw_clean %>%
-#   mutate(across(all_of(cols_to_check), ~ ifelse(. < 0, NA, .)))
-
-# merge pre und post dfs
-data <- data_raw_clean
-
-# following codes to be excluded (from Ute) due to various reasons (e.g., not taking part in seminar, moved, or already visited KI seminar before)
-codes_to_exclude <- c(
-  "chgi15",
-  "enma23",
-  "rtev15",
-  "enje10"
-)
-# data <- data[data$code != "höel07", ] #example code
-
-# check for multiple entries and completed questionnaires
-table(table(data$code))
-# find out which codes have multiple entries
-codes_multiple <- names(which(table(data$code) > 2)) # "enan27" "enta20"
-# view a specific code; obsu02 stfr08 (both multiple finished questionnaire, rowindex 1811)
-# rownames(data)[data$code == "enan27"]
-# for now exclude those two from the data "enan27" "enta20", extend codes_to_exclude with those two
-codes_to_exclude <- c(codes_to_exclude, c("enan27", "enta20"))
-data <- data[!data$code %in% codes_to_exclude, ]
-
-# data <- data[!rownames(data) %in% c("1811", "1814"), ] # TODO: Wie haben wir uns entschieden? am besten erster eintrag nehmen
-# View(data_raw[data_raw$code == "obsu02", ]) #stfr08
-
-## Corrections
-
-# Code corrections from levenshtein checks
-# data$code[data$code == "mair10"] <- "moir10"
-# data$code[data$code == "drch17"] <- "frch17"
-# data$code[data$code == "loma26"] <- "goma26"
-# data$code[data$code == "sisu00"] <- "sisu01"
-# data$code[data$code == "mosy24"] <- "stsy24"
-# data$code[data$code == "frco30"] <- "scco30"
-# data$code[data$code == "meli06"] <- "meli63"
-# data$code[data$code == "waol30"] <- "spol30"
-
-# investigate: df with subjects having unclear studies, check semestercount to see if BA or MA
-# temp_df <- data %>%
-#   filter(!is.na(DE16_16)) %>%
-#   select(code, DE16_16, semester, intervention)
-
-# # append (Master) to those with semestercount > 6 according to tmp_df
-# data$DE16_16[data$code %in% temp_df$code] <-
-#   paste0(data$DE16_16[data$code %in% temp_df$code], " (Master)")
-
-# remove(temp_df)
-
-# check code distances
-# check_dist <- F
-# if (check_dist) {
-#   check_distances(data, 2)
-# }
-
-# check demograph. differences pre to post
-dem_diff <- check_demo_vars(
-  data,
-  demo_vars = c(
-    "age",
-    "semester",
-    "gender",
-    "students",
-    "intervention",
-    "location"
-  ),
-  id = "code",
-  show_only_diff = T
-)
-
-# correct students in post to students in pre (to report one value and have same student status for subj when calc models)
-codes_students <- dem_diff %>%
-  filter(variable == "students") %>%
-  pull(code)
-for (cc in codes_students) {
-  # save pre value
-  pre_val <- data$students[data$code == cc & data$time == "pre"]
-
-  # write that in post value
-  data$students[data$code == cc & data$time == "post"] <- pre_val
-}
-
-codes_gender <- dem_diff %>%
-  filter(variable == "gender") %>%
-  pull(code)
-# correct gender in post to gender in pre
-for (cc in codes_gender) {
-  # save pre value
-  pre_val <- data$gender[data$code == cc & data$time == "pre"]
-
-  # write that in post value
-  data$gender[data$code == cc & data$time == "post"] <- pre_val
-}
-
-data$gender <- factor(
-  data$gender
-)
-
-# # look at data entries for codes kesü16, leel08, mail19, obpe30, osel08, rosa20, röma24, scna18, stfr08
-# codes_of_interest <- c(
-#   "rosa20"
-# )
-# df_subset <- data %>%
-#   filter(code %in% codes_of_interest) %>%
-#   select(
-#     code,
-#     subject1,
-#     subject2,
-#     students,
-#     studies,
-#     gender,
-#     age,
-#     location,
-#     semester,
-#     time,
-#     intervention,
-#     isp
-#   )
-# View(df_subset)
-
-# semester count correction (post to pre) after reviewing dem. data
-adjust_semester_to_pre <- c(
-  "enbi16",
-  "enca28",
-  "enhe07",
-  "enke20",
-  "ennu03",
-  "enze11",
-  "ensa03",
-  "inca02",
-  "llsa08",
-  "llsi08",
-  "llsa09",
-  "msma08",
-  "nnbe18",
-  "rgma26",
-  "ttqu16",
-  "ennu31",
-  "enro23",
-  "lmul12",
-  "rgal31"
-)
-for (cc in adjust_semester_to_pre) {
-  # save pre value
-  pre_val <- data$semester[data$code == cc & data$time == "pre"]
-
-  # write that in post value
-  data$semester[data$code == cc & data$time == "post"] <- pre_val
-}
-
-# semester count correction (pre to post) after reviewing dem. data
-# adjust_semester_to_post <- c("kesü16", "stfr08", "obpe30", "mail19")
-# for (cc in adjust_semester_to_post) {
-#   # save pre value
-#   pre_val <- data$semester[data$code == cc & data$time == "post"]
-
-#   # write that in post value
-#   data$semester[data$code == cc & data$time == "pre"] <- pre_val
-# }
-
-data_all <- data
-# save data for demographics (no pre-post filtering)
-save(data_all, file = "data/data_all.Rdata")
-
-# only keep subjects with both data in pre and post test for analysis
-data <- data %>%
-  group_by(code) %>%
-  filter(all(c("pre", "post") %in% time)) %>%
-  ungroup()
-
-save(data, file = "data/data.Rdata")
-
-```
-
-```{r Demographics}
-# Generate the tableby summary
-preprocess_data <- function(data_all) {
-  data %>%
-    droplevels() %>%
-    mutate(
-      studies = fct_infreq(studies),
-      subject1 = fct_infreq(subject1),
-      subject2 = fct_infreq(subject2)
-    )
-}
-
-# only get data from pretest for demographic data to see registered
-# data_pretest <- data_all %>%
-#   filter(time == "pre")
-
-# nrow(data_pretest) # amount of registered participants 145
-
-# only take samples with pre and post test data into account, singlecodes
-data_dem_all <- data_all %>%
-  group_by(code) %>%
-  filter(all(c("pre", "post") %in% time)) %>%
-  filter(time == "post") %>%
-  ungroup()
-nrow(data_dem_all) # 78 participants with pre and post test
-
-# Create the formula
-demographics_formula <- intervention ~
-  location + age + gender + semester + isp + studies #+ subject1 + subject2
-demographics <- tableby(demographics_formula, data = data_dem_all)
-
-# Ausgabe als Tabellen
-summary(demographics) %>%
-  as.data.frame() %>%
-  knitr::kable(caption = "Demographic Summary")
-
-# Welche Fächer gibt es wie oft?
-subject_counts <- data_dem_all %>%
-  group_by(intervention) %>%
-  pivot_longer(
-    c(subject1, subject2),
-    names_to = "slot",
-    values_to = "subject"
-  ) %>%
-  mutate(subject = str_squish(subject)) %>%
-  filter(!is.na(subject), subject != "") %>%
-  count(subject, sort = TRUE, name = "n") #%>%
-# mutate(p = n / sum(n))
-
-print(n = 100, subject_counts)
+data_pre <- data %>% filter(time == "pre")
 
 ```
 
@@ -619,11 +191,13 @@ list_items_i_tpack <- list(
 # data_subset1 <- data %>% select(all_of(unlist(list_items_i_tpack)))
 # View(data_subset1)
 
-## Reflection
-list_items_ref <- list(
-  "Ref" = grep("^RE02_", names(data), value = T)
+## Critical Evaluation of AI
+list_items_cea <- list(
+  "CEA" = grep("^RE02_(0[1-9])$", names(data), value = T),
+  "CEA_understanding" = grep("^RE02_(0[1-4])$", names(data), value = T),
+  "CEA_ped" = grep("^RE02_(0[5-9])$", names(data), value = T)
 )
-# data_subset3 <- data %>% select(all_of(unlist(list_items_ref)))
+# data_subset3 <- data %>% select(all_of(unlist(list_items_cea)))
 # sum(data_subset3 < 0, na.rm = TRUE)
 
 ## AI Literacy
@@ -673,7 +247,12 @@ data <- data %>%
       select(., all_of(list_items_i_tpack$Ethics)),
       na.rm = TRUE
     ),
-    Ref = rowMeans(select(., all_of(list_items_ref$Ref)), na.rm = TRUE),
+    CEA = rowMeans(select(., all_of(list_items_cea$CEA)), na.rm = TRUE),
+    CEA_understanding = rowMeans(
+      select(., all_of(list_items_cea$CEA_understanding)),
+      na.rm = TRUE
+    ),
+    CEA_ped = rowMeans(select(., all_of(list_items_cea$CEA_ped)), na.rm = TRUE),
     TPACK_total = rowMeans(
       select(., all_of(unlist(list_items_i_tpack))),
       na.rm = TRUE
@@ -688,12 +267,60 @@ data %>%
 
 ```
 
+```{r reshape data}
+
+# reshape to long
+data_long <- data %>%
+  pivot_longer(
+    cols = c(all_of(outcomes)),
+    names_to = "outcome",
+    values_to = "score"
+  )
+
+data_long <- data_long %>%
+  mutate(
+    outcome = factor(outcome, levels = outcomes)
+  )
+
+```
+
+```{r descriptive-plots}
+# TPACK
+p_tpack <- plot_outcome(
+  data_long %>% filter(!str_detect(outcome, "^(AILIT|CEA)")),
+  scales_facet = "fixed"
+) +
+  ggtitle("Intelligent-TPACK")
+
+ggsave(
+  p_tpack + facet_wrap(~outcome, ncol = 3),
+  file = "figures/plot-tpack.pdf",
+  width = 8,
+  height = 10,
+  device = cairo_pdf
+)
+# AILIT
+p_ailit <- plot_outcome(
+  data_long %>% filter(str_detect(outcome, "^(AILIT)"))
+) +
+  ggtitle("AI Literacy")
+
+# Critical Evaluation of AI
+p_cea <- plot_outcome(
+  data_long %>% filter(str_detect(outcome, "^(CEA)"))
+) +
+  ggtitle("Critical Evaluation of AI (CEA)")
+
+```
+
+
 # Methods
 
 ## Participants
 
-```{r participants}
+```{r participants, cache=F}
 p_load(dplyr, tidyr) # needs to be called for rendering to work
+
 data_participants <- data %>%
   filter(time == "pre") %>%
   group_by(intervention, location, gender) %>%
@@ -707,12 +334,11 @@ data_participants <- data %>%
     semester_min = min(semester, na.rm = T),
     semester_max = max(semester, na.rm = T),
     semester_mean = mean(semester, na.rm = T) %>% round(2),
-    semester_sd = sd(semester, na.rm = T) %>% round(2)
-  ) %>%
-  ungroup()
+    semester_sd = sd(semester, na.rm = T) %>% round(2),
+    .groups = "drop"
+  )
 ```
 
-### table
 
 ```{r table-participants, result = "asis"}
 #| label: tbl-participants
@@ -740,7 +366,7 @@ var_names <- list(
   TPACK_total = "Intelligent TPACK",
   AILIT = "AI Literacy",
   Ethics = "AI Ethics",
-  Ref = "Reflection"
+  CEA = "Critical Evaluation of AI"
 )
 
 kable(
@@ -758,11 +384,10 @@ kable(
         TPACK_total +
         Ethics +
         AILIT +
-        Ref,
+        CEA,
       data %>%
         filter(time == "pre") %>%
         mutate(
-          gender = factor(gender, labels = c("Female", "Male")),
           students = factor(students, labels = c("Bachelor", "Master"))
         ) %>%
         droplevels(),
@@ -780,92 +405,28 @@ kable(
 )
 ```
 
+## Materials
 
-## Analysis
+### Data Preparation and Cleaning (needs to be done after data gets merged)
 
-```{r analysis-setup}
-#define vars
-controls <- c("gender", "semester", "location")
-random_terms_lmer <- c("(1 | code)")
-groups <- c("intervention")
-time <- "time"
-outcomes <- c(
-  "AILIT",
-  "AILIThorn",
-  "AILITglat",
-  "TK",
-  "TPK",
-  "TCK",
-  "TPACKce",
-  "TPACKgenai",
-  "Ethics",
-  "Ref"
-)
-vars_num <- c("age", "semester") # numeric outcomes
-vars_cat <- c("gender", "students") # categorical outcomes`
-```
-
-## Effect Sizes
-
-```{r effect-sizes}
-#| eval: false
-lmers_prepost_all <-
-  lapply(
-    outcomes,
-    fit_lmer,
-    groups,
-    time,
-    controls,
-    random_terms_lmer,
-    NULL,
-    data = data
+```{r}
+# get participants who only participated in pre or post test
+data_dropouts <- data_all %>%
+  group_by(code) %>%
+  summarise(
+    has_pre = any(time == "pre"),
+    has_post = any(time == "post"),
+    .groups = "drop"
+  ) %>%
+  summarise(
+    n_pre_only = sum(has_pre & !has_post),
+    n_post_only = sum(!has_pre & has_post),
+    n_both = sum(has_pre & has_post)
   )
-
-dhat <- function(model, idx = 3, type = 2) {
-  f <- abs(tail(summary(model)$coefficients, idx))[1]
-  v <- sqrt(tail(anova(model, type = type)[["Mean Sq"]], 1))
-  return(f / v)
-}
-#' Compute standardized effect size d for one fixed effect in an lmer model, based on https://pmc.ncbi.nlm.nih.gov/articles/PMC6646942/
-#'
-#' d = estimate / sqrt(sum of variances of random effects [+ residual if chosen])
-#'
-#' @param model lmer model
-#' @param effect character, name of the fixed effect in fixef(model)
-#' @param include_residual logical, include residual variance (default TRUE)
-#' @return numeric, effect size d
-lmer_d <- function(model, effect, include_residual = TRUE) {
-  stopifnot(effect %in% names(lme4::fixef(model)))
-
-  # numerator
-  est <- unname(lme4::fixef(model)[effect])
-
-  # variance components
-  vc <- as.data.frame(lme4::VarCorr(model)) # grp, var1, var2, vcov, sdcor
-  var_random <- sum(vc$vcov, na.rm = TRUE)
-
-  # residual
-  if (!include_residual) {
-    var_random <- var_random - sigma(model)^2
-  }
-
-  d <- est / sqrt(var_random)
-  return(d)
-}
-
-effect_sizes_dhat_old <- sapply(lmers_prepost_all, dhat, idx = 2) %>% round(2)
-
-effect_sizes <- sapply(
-  lmers_prepost_all,
-  lmer_d,
-  "intervention-c+STEM_language:time-pre+post"
-) %>%
-  round(2)
-effect_sizes
 ```
 
+## Statistical Analysis Ancova
 
-### Ancova
 ```{r ancova}
 # reshape data to wide format for ancova
 data_wide <- data %>%
@@ -920,29 +481,31 @@ names(ancovas_two_groups) <- outcomes
 ```
 
 
-## Intelligent TPACK and AI Ethics
-
-::: {.landscape}
-```{r tab.layout="autofit"}
-#| label: tbl-ancova-tpack-summary
-#| tbl-cap: "Summary of Multiple Regression Models for Intelligent TPACK Subscales and AI Ethics"
-
-ft_ancova <- modelsummary_models(
-  ancovas[grepl("^(T|Ethics)", names(ancovas))],
-  outcomes = outcomes %>% grep("^(T|Ethics)", ., value = TRUE),
-  output = modelsummary_output,
-  # coef_rename = c("genderMännlich" = "Geschlecht")
-) # %>%   kableExtra::scroll_box(width = "100%")
-
-if (is_word) {
-  ft_ancova <- adjust_table_for_word(ft_ancova, width = 1)
-}
-ft_ancova
-```
-
-:::
-
 ## AI Literacy
+
+```{r fig-ai-lit, echo=FALSE, fig.cap="Descriptive Statistics of Students' AI Literacy Scores Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=6.5}
+plot_outcome(
+  data_long %>%
+    filter(outcome %in% c("AILIT", "AILIThorn", "AILITglat")) %>%
+    mutate(
+      outcome = factor(
+        outcome,
+        levels = c("AILIT", "AILIThorn", "AILITglat"),
+        labels = c(
+          "AI Literacy - Full Scale",
+          "AI Literacy - Study-Specific",
+          "AI Literacy - GLAT"
+        )
+      )
+    ),
+  ylab = "Score"
+) +
+  ggtitle("AI Literacy") +
+  theme(legend.position = "bottom")
+
+#p_ailit %+% + facet_wrap(~outcome, ncol =2, scales="free")  + labs(y = "Score")  + theme(legend.position = "bottom")
+
+```
 
 ```{r tab.layout = "autofit"}
 #| label: tbl-ancova-ailit-summary
@@ -951,8 +514,7 @@ ft_ancova
 ft_ailit_ancova <- modelsummary_models(
   ancovas[names(ancovas) %in% c("AILIT", "AILIThorn", "AILITglat")],
   outcomes = c("AILIT", "AILIThorn", "AILITglat"),
-  output = modelsummary_output,
-  # coef_rename = c("genderMännlich" = "Geschlecht")
+  output = modelsummary_output
 ) # %>%   kableExtra::scroll_box(width = "100%")
 
 if (is_word) {
@@ -961,27 +523,21 @@ if (is_word) {
 ft_ailit_ancova
 ```
 
-## Critical Reflection
+AILIT_post ~ intervention + pretest + gender + semester
 
-::: {.landscape}
-```{r tab.layout="autofit"}
-#| label: tbl-ancova-ref-summary
-#| tbl-cap: "Summary of Multiple Regression Models for Reflection subscale."
+interventionstem = Unterschied zwischen STEM und CONTROL
 
-ft_ailit_ancova <- modelsummary_models(
-  ancovas[names(ancovas) %in% c("Ref")],
-  outcomes = c("Ref"),
-  output = modelsummary_output,
-  # coef_rename = c("genderMännlich" = "Geschlecht")
-) # %>%   kableExtra::scroll_box(width = "100%")
+interventionlanguage = Unterschied zwischen Language und CONTROL
 
-if (is_word) {
-  ft_ailit_ancova <- adjust_table_for_word(ft_ailit_ancova, width = .75)
-}
-ft_ailit_ancova
-```
+Das Modell testet nicht direkt STEM vs Language.
 
-:::
+b interessiert und hier und ob der Wert sign (*) ist oder nicht.
+
+| Outcome   | STEM Effekt | Language Effekt |
+| --------- | ----------- | --------------- |
+| AILIT     | **0.92***   | **0.56***       |
+| AILIThorn | **0.49***   | n.s.            |
+| AILITglat | **1.05***   | **0.61**        |
 
 ```{r, results="asis"}
 if (!is_word) {
@@ -1000,27 +556,133 @@ if (!is_word) {
 }
 ```
 
-## Two Groups (Control vs. Intervention)
 
-::: {.callout-note}
-Due to the very small (insignificant) difference between the distribution of gender in the treatment groups, we could drop it from the covariates.
+## Intelligent TPACK and AI Ethics
+
+```{r fig-tpack, echo=FALSE, fig.cap="Descriptive Statistics of Students' Intelligent TPACK and AI Ethics Ratings Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=6.5}
+p_tpack +
+  facet_wrap(
+    ~outcome,
+    scales = "fixed",
+    ncol = 3,
+    labeller = labeller(
+      outcome = c(
+        TK = "Intelligent TK",
+        TCK = "Intelligent TCK",
+        TPK = "Intelligent TPK",
+        TPACKce = "Intelligent TPACK - Core",
+        TPACKgenai = "iTPACK - Generative AI",
+        Ethics = "AI Ethics"
+      )
+    )
+  ) +
+  ggtitle("Intelligent TPACK and AI Ethics") +
+  theme(legend.position = "bottom")
+```
+
+
+::: {.landscape}
+```{r tab.layout="autofit"}
+#| label: tbl-ancova-tpack-summary
+#| tbl-cap: "Summary of Multiple Regression Models for Intelligent TPACK Subscales and AI Ethics"
+
+ft_ancova <- modelsummary_models(
+  ancovas[grepl("^(T|Ethics)", names(ancovas))],
+  outcomes = outcomes %>% grep("^(T|Ethics)", ., value = TRUE),
+  output = modelsummary_output,
+) # %>%   kableExtra::scroll_box(width = "100%")
+
+if (is_word) {
+  ft_ancova <- adjust_table_for_word(ft_ancova, width = 1)
+}
+ft_ancova
+```
 
 :::
 
-```{r effectsizes-covariates-two-groups}
-#| eval: false
-# perform chi square for categorical variables
-chisquare_covariates_two_groups <- vars_cat %>%
-  lapply(function(v) {
-    tab <- table(d[[v]], d$treatment)
-    chisq <- chisq.test(tab)
-  })
-names(chisquare_covariates_two_groups) <- vars_cat
+## Critical Evaluation of AI (CEA)
+Note für uns: ggf. reduzieren wir CEA auf eine Skala mit 9 Items. Im Piloten haben wir 15 items getestet und EFA hat gezeigt, dass Reduktion auf 2 Skalen möglich wäre. Das haben wir gemacht, und die funktionieren auch, aber ein Item lädt z.B. ziemlich stark auf die andere Skala. Entweder bekommt man das gut begründet, aber den richtigen Mehrwert sehe ich nicht, 2 Skalen aufzustellen. So oder so, es haben alle Skalen gut funktioniert und zeigen den Mehrwert vom Seminar.
 
-chisquare_covariates_two_groups
-
-effectsizes_covariates__two_groups %>% kable
+```{r fig-cea, echo=FALSE, fig.cap="Descriptive Statistics of Students' Critical Evaluation of AI Over Time by Treatment Group.", out.width="100%",fig.width=7, fig.height=6.5}
+p_cea +
+  facet_wrap(
+    ~outcome,
+    scales = "fixed",
+    ncol = 2,
+    labeller = labeller(
+      outcome = c(
+        CEA = "Critical Evaluation of AI (CEA) - Full Scale",
+        CEA_understanding = "Critical Understanding of AI",
+        CEA_ped = "Pedagogical Evaluation of AI Output"
+      )
+    )
+  ) +
+  ggtitle("Critical Evaluation of AI (CEA)") +
+  theme(legend.position = "bottom")
 ```
+
+::: {.landscape}
+```{r tab.layout="autofit"}
+#| label: tbl-ancova-CEA-summary
+#| tbl-cap: "Summary of Multiple Regression Models for CEA subscale."
+
+ft_cea_ancova <- modelsummary_models(
+  ancovas[grepl("^(CEA)", names(ancovas))],
+  outcomes = c("CEA", "CEA_understanding", "CEA_ped"),
+  output = modelsummary_output,
+) # %>%   kableExtra::scroll_box(width = "100%")
+
+if (is_word) {
+  ft_cea_ancova <- adjust_table_for_word(ft_cea_ancova, width = .75)
+}
+ft_cea_ancova
+```
+
+:::
+
+``` {r Exploring CEA data}
+# cronbach alpha
+alphas <- imap(
+  list_items_cea,
+  ~ psych::alpha(dplyr::select(data_pre, dplyr::all_of(.x)), warnings = FALSE)
+)
+alphas
+# 0.86 alpha, kein item lohnt sich rauszunehmen
+
+data_post <- data %>% filter(time == "post" & CEA != "NaN")
+# EFA
+ncomp <- 2
+# EFA
+df_cea_items <- data_post %>%
+  select(all_of(list_items_cea$CEA)) %>%
+  na.omit()
+cea_scale <- list_items_cea %>% unlist(use.names = F)
+
+efa_promax <- df_cea_items %>%
+  select(any_of(cea_scale)) %>%
+  psych::fa(nfactors = ncomp, rotate = "varimax", fm = "ml", missing = T)
+
+# print(efa_promax, digits = 2, cut = .3, sort = F)
+fa.diagram(efa_promax, digits = 2, cut = .30, simple = FALSE)
+
+## Computing EFA using the lavaan package
+cea_efa <- lavaan::efa(
+  df_cea_items %>%
+    select(any_of(cea_scale)),
+  nfactors = ncomp,
+  rotation = "varimax",
+  ordered = F,
+  std.lv = TRUE,
+  missing = "fiml"
+)
+
+summary(cea_efa, nd = 3L, cutoff = 0.3, dot.cutoff = 0.05)
+
+```
+
+Results from efa and cronbachs alpha confirm our exploration and adjustments from pilot data. we have a good scale in CEA.
+
+## Two Groups (Control vs. Intervention)
 
 ```{r ancova-two-groups}
 #| label: tbl-ancova-two-groups
@@ -1037,5 +699,5 @@ modelsummary_models(
 
 ```{r save-env }
 # save environment
-save.image("data/env-analysis.Rdata")
+save.image("data/26-env-analysis.Rdata")
 ```
