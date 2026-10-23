@@ -291,7 +291,7 @@ set.seed(20260302) # choose & record a seed to reproduce the same mapping later 
 codes <- unique(data_raw$code)
 
 # random but stable (given seed) permutation of sequential IDs
-anon_ids <- sprintf("P%05d", sample.int(length(codes)))
+anon_ids <- sprintf("P2%04d", sample.int(length(codes)))
 
 key <- data.frame(
   code = codes,
@@ -305,13 +305,13 @@ data_all <- merge(data_raw, key, by = "code", all.x = TRUE, sort = FALSE)
 data_all$code <- NULL
 # rename anon_code to code
 names(data_all)[names(data_all) == "anon_code"] <- "code"
-data_all <- data_all[, c("code", setdiff(names(data_all), "code"))] #set code as first column
+data_all_26 <- data_all[, c("code", setdiff(names(data_all), "code"))] #set code as first column
 
 # save data for demographics (no pre-post filtering)
-save(data_all, file = "data/26-data_all.Rdata")
+save(data_all_26, file = "data/26-data_all.Rdata")
 
 # only keep subjects with both data in pre and post test for analysis
-data <- data_all %>%
+data_26 <- data_all_26 %>%
   group_by(code) %>%
   filter(all(c("pre", "post") %in% time)) %>%
   ungroup()
@@ -326,4 +326,4 @@ if (any(tab != 1, na.rm = TRUE)) {
 }
 # check again
 
-save(data, file = "data/26-data.Rdata")
+save(data_26, file = "data/26-data.Rdata")

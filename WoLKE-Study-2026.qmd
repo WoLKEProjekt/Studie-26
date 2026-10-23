@@ -700,4 +700,5 @@ modelsummary_models(
 ```{r save-env }
 # save environment
 save.image("data/26-env-analysis.Rdata")
+# sys.load.image("data/26-env-analysis.Rdata")
 ```
